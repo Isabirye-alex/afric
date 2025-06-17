@@ -70,9 +70,10 @@ class _BodyScreenState extends State<BodyScreen> {
                       child: DottedContainer(
                         getIcon: Icons.wifi_calling_3,
                         getText: 'VOICE',
-                        onTap: () => controller.checkUserStatus(),
+                        onTap: () => Get.to(()=>BarCodeScreen())),
                       ),
-                    ),
+                  
+                  
                     Expanded(
                       flex: 5,
                       child: DottedContainer(

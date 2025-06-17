@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:afri/core/barCode/decoded_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -143,9 +145,15 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
       if (barcodes.isNotEmpty && mounted) {
         final barcodeValue = barcodes.first.displayValue ?? 'No value';
         debugPrint('Barcode detected: $barcodeValue (Type: ${barcodes.first.format})');
-        setState(() {
-          barcodeText = 'Barcode: $barcodeValue';
-        });
+        final decodedData = _decodeBarcodeData(barcodeValue);
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DecodedInfoScreen(decodedData: decodedData),
+            ),
+          );
+        }
       } else {
         debugPrint('No barcodes detected in this frame');
         setState(() {
@@ -277,7 +285,6 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
             },
             child: CameraPreview(_cameraController!),
           ),
-          // Enhanced scanning overlay
           Center(
             child: Container(
               width: MediaQuery.of(context).size.width * 0.7,
@@ -290,7 +297,7 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
               child: const Center(
                 child: Text(
                   'Place barcode here',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.white,fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -306,11 +313,56 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
                 barcodeText,
                 style: const TextStyle(color: Colors.white, fontSize: 16),
                 textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Map<String, String> _decodeBarcodeData(String barcodeValue) {
+    final parts = barcodeValue.split(';');
+    final decodedData = <String, String>{};
+
+    // Attempt to decode base64 segments
+    for (int i = 0; i < parts.length; i++) {
+      try {
+        final decoded = utf8.decode(base64Decode(parts[i]));
+        decodedData['Field $i (Decoded)'] = decoded;
+      } catch (e) {
+        // If decoding fails, treat as plain text
+        switch (i) {
+          case 2: // Assuming third segment might be date of birth (e.g., 15102001)
+            decodedData['Date of Birth'] = _formatDate(parts[i]);
+            break;
+          case 3: // Assuming fourth segment might be issue date
+            decodedData['Issue Date'] = _formatDate(parts[i]);
+            break;
+          case 4: // Assuming fifth segment might be expiry date
+            decodedData['Expiry Date'] = _formatDate(parts[i]);
+            break;
+          case 6: // Assuming seventh segment might be ID number
+            decodedData['ID Number'] = parts[i];
+            break;
+          default:
+            decodedData['Field $i'] = parts[i];
+        }
+      }
+    }
+
+    return decodedData;
+  }
+
+  String _formatDate(String dateStr) {
+    if (dateStr.length == 8 && RegExp(r'^\d{8}$').hasMatch(dateStr)) {
+      final day = dateStr.substring(0, 2);
+      final month = dateStr.substring(2, 4);
+      final year = dateStr.substring(4);
+      return '$day/$month/$year';
+    }
+    return dateStr; // Return as is if not in expected format
   }
 }
