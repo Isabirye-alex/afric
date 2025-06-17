@@ -21,10 +21,11 @@ class PopUpDialog extends StatelessWidget {
         insetPadding: EdgeInsets.symmetric(
           horizontal: MediaQuery.of(context).size.width * 0.05,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.9,
+            // maxHeight: 400
+            maxHeight: MediaQuery.of(context).size.height * 0.4,
           ),
           child: child,
         ),

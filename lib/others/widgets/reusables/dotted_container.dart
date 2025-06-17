@@ -6,26 +6,26 @@ class DottedContainer extends StatelessWidget {
     super.key,
     required this.getIcon,
     required this.getText,
-    this.screen,
+    // this.screen,
     this.child,
     this.onTap,
   });
 
   final IconData getIcon;
   final String getText;
-  final double? screen;
+  // final double? screen;
   final Widget? child;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    // final size = MediaQuery.of(context).size;
 
     return Card(
       elevation: 10,
       child: Container(
         height: 150,
-        width: size.width * screen!,
+        // width: size.width * screen!,
         padding: EdgeInsets.all(12),
         margin: EdgeInsets.only(top: 12, left: 12, right: 12),
         decoration: BoxDecoration(

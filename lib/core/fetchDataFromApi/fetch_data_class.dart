@@ -12,17 +12,38 @@ class ViewWidget extends StatefulWidget {
 }
 
 class _ViewWidgetState extends State<ViewWidget> {
+
   String userInput = '';
   final TextEditingController inputController = TextEditingController();
   String sessionText = '';
   late Future<UssdViewObject> _futureResults;
   bool isLoading = true;
+
   @override
-  void initState() {
-    super.initState();
-    sessionText = inputController.text.trim();
-    _futureResults = sendUssdRequestWithResponse(sessionText);
-    isLoading = false;
+void initState() {
+  super.initState();
+  sessionText = inputController.text.trim();
+
+  // Delay execution to next frame to allow loading UI to show first
+  Future.delayed(Duration.zero, () {
+    _loadInitialData();
+  });
+}
+
+  void _loadInitialData() {
+  setState(() {
+    isLoading = true;
+
+    
+  _futureResults = sendUssdRequestWithResponse(sessionText);
+  _futureResults.whenComplete(() {
+    setState(() {
+      isLoading = false;
+    });
+  });
+  }
+  );
+  
   }
 
   Future<UssdViewObject> sendUssdRequestWithResponse(String userInput) async {
@@ -31,7 +52,7 @@ class _ViewWidgetState extends State<ViewWidget> {
         Uri.parse('https://newtest.mcash.ug/wallet/api/client/ussd'),
         body: <String, String>{
           'phoneNumber': '+256706432259',
-          'text': sessionText,
+          'text': userInput,
         },
       );
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -54,8 +75,9 @@ class _ViewWidgetState extends State<ViewWidget> {
       future: _futureResults,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          isLoading = true;
-          } else if (snapshot.hasError) {
+          // isLoading;
+          return SizedBox();
+        } else if (snapshot.hasError) {
           return Text(
             'Error: ${snapshot.error}',
             style: TextStyle(fontSize: 16, color: Colors.red),
@@ -139,6 +161,7 @@ class _ViewWidgetState extends State<ViewWidget> {
                               sessionText,
                             );
                             inputController.clear();
+                            _loadInitialData(); 
                             // print('Full sessionText: $sessionText');
                           }
                         });
@@ -165,15 +188,15 @@ class _ViewWidgetState extends State<ViewWidget> {
     return Padding(
       padding: EdgeInsets.zero,
       child: isLoading
-          ? Container(
-              height: 40,
-              width: MediaQuery.of(context).size.width * 0.8,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: CircularProgressIndicator(),
-            )
+          ?  Container(
+    alignment: Alignment.center,
+    padding: const EdgeInsets.all(16),
+    constraints: const BoxConstraints(
+      maxHeight: 80, 
+      maxWidth: 80, 
+    ),
+    child: CircularProgressIndicator(),
+    )
           : buildFutureBuilder(),
     );
   }

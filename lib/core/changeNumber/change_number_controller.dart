@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:countries/countries.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -15,7 +17,7 @@ class UserController extends GetxController {
   static UserController get instance => Get.find();
   late final TextEditingController phoneController = TextEditingController();
   var displayText = 'Loading...'.obs;
-  b
+  
 
   @override
   void onInit() {

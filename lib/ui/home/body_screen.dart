@@ -1,3 +1,4 @@
+import 'package:afri/core/barCode/bar_code_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/changeNumber/change_number_controller.dart';
@@ -24,43 +25,61 @@ class _BodyScreenState extends State<BodyScreen> {
                 Ready(),
                 Row(
                   children: [
-                    DottedContainer(
-                      getIcon: Icons.perm_phone_msg_rounded,
-                      getText: 'SMS',
-                      screen: 0.40,
-                      onTap: () => controller.checkUserStatus(),
+                    Expanded(
+                      flex: 5,
+                      child: DottedContainer(
+                        getIcon: Icons.perm_phone_msg_rounded,
+                        getText: 'SMS',                        
+                        onTap: () => controller.checkUserStatus(),
+                      ),
                     ),
-                    DottedContainer(
-                      getIcon: Icons.dialpad,
-                      getText: 'USSD',
-                      screen: 0.40,
-                      onTap: () => controller.checkUserStatus(),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    DottedContainer(
-                      getIcon: Icons.payments,
-                      getText: 'PAYMENTS',
-                      screen: 0.40,
-                      onTap: () => controller.checkUserStatus(),
-                    ),
-                    DottedContainer(
-                      getIcon: Icons.dialpad,
-                      getText: 'AIRTIME',
-                      screen: 0.40,
-                      onTap: () => controller.checkUserStatus(),
+                    Expanded(
+                      flex: 5,
+                      child: DottedContainer(
+                        getIcon: Icons.dialpad,
+                        getText: 'USSD',                      
+                        onTap: () => controller.checkUserStatus(),
+                      ),
                     ),
                   ],
                 ),
                 Row(
                   children: [
-                    DottedContainer(
-                      getIcon: Icons.wifi_calling_3,
-                      getText: 'VOICE',
-                      screen: 0.9,
-                      onTap: () => controller.checkUserStatus(),
+                    Expanded(
+                      flex: 5,
+                      child: DottedContainer(
+                        getIcon: Icons.payments,
+                        getText: 'PAYMENTS',                        
+                        onTap: () => controller.checkUserStatus(),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 5,
+                      child: DottedContainer(
+                        getIcon: Icons.dialpad,
+                        getText: 'AIRTIME',
+                        onTap: () => controller.checkUserStatus(),
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: DottedContainer(
+                        getIcon: Icons.wifi_calling_3,
+                        getText: 'VOICE',
+                        onTap: () => controller.checkUserStatus(),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 5,
+                      child: DottedContainer(
+                        getIcon: Icons.qr_code_scanner_sharp,
+                        getText: 'VERIFY ID',                     
+                        onTap: () => Get.to(()=>BarCodeScreen()),
+                      ),
                     ),
                   ],
                 ),

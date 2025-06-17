@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
-import '../../../core/changeNumber/change_number_controller.dart';
 import '../../../core/changeNumber/change_number_screen.dart';
 import '../../../ui/documentation/documentation_main_screen.dart';
 import '../../../ui/registerUser/register_dialog.dart';
@@ -11,7 +9,7 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final changeNumberController = Get.put(UserController());
+    // final changeNumberController = Get.put(UserController());
     return Drawer(
       width: 280,
       child: ListView(
