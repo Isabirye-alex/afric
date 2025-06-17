@@ -8,6 +8,7 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 import 'package:native_device_orientation/native_device_orientation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/scheduler.dart';
 
 class BarCodeScreen extends StatefulWidget {
   const BarCodeScreen({super.key});
@@ -17,6 +18,7 @@ class BarCodeScreen extends StatefulWidget {
 }
 
 class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   CameraController? _cameraController;
   late BarcodeScanner _barcodeScanner;
   bool _isDetecting = false;
@@ -55,9 +57,11 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
       return false;
     } catch (e) {
       debugPrint('Error requesting camera permission: $e');
-      setState(() {
-        _errorMessage = 'Failed to request camera permission: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to request camera permission: $e';
+        });
+      }
       return false;
     }
   }
@@ -81,95 +85,94 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
       if (!mounted) return;
 
       await _cameraController!.startImageStream(_processCameraImage);
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
+      debugPrint('Camera initialization error: $e');
       if (mounted) {
         setState(() {
           _errorMessage = 'Failed to initialize camera: $e';
         });
       }
-      debugPrint('Camera initialization error: $e');
     }
   }
 
-  Future<void> _processCameraImage(CameraImage image) async {
-    if (_frameCount++ % _frameSkip != 0) return;
-    if (_isDetecting || !mounted) return;
+ Future<void> _processCameraImage(CameraImage image) async {
+  if (_frameCount++ % _frameSkip != 0) return;
+  if (_isDetecting || !mounted) return;
 
-    debugPrint('Processing image: format=${image.format.group}, raw=${image.format.raw}, '
-        'width=${image.width}, height=${image.height}, bytesPerRow=${image.planes.first.bytesPerRow}');
+  debugPrint('Processing image: format=${image.format.group}, raw=${image.format.raw}, '
+      'width=${image.width}, height=${image.height}, bytesPerRow=${image.planes.first.bytesPerRow}');
 
-    _isDetecting = true;
+  _isDetecting = true;
 
-    try {
-      final WriteBuffer allBytes = WriteBuffer();
-      for (final plane in image.planes) {
-        allBytes.putUint8List(plane.bytes);
-      }
-      final bytes = allBytes.done().buffer.asUint8List();
-      debugPrint('Image bytes length: ${bytes.length}');
+  try {
+    final WriteBuffer allBytes = WriteBuffer();
+    for (final plane in image.planes) {
+      allBytes.putUint8List(plane.bytes);
+    }
+    final bytes = allBytes.done().buffer.asUint8List();
+    debugPrint('Image bytes length: ${bytes.length}');
 
-      // Save the first frame for debugging
-      if (_frameCount == _frameSkip) {
-        await _saveFrameForDebugging(bytes, image.width, image.height);
-      }
+    // Save the first frame for debugging
+    if (_frameCount == _frameSkip) {
+      await _saveFrameForDebugging(bytes, image.width, image.height);
+    }
 
-      final Size imageSize = Size(image.width.toDouble(), image.height.toDouble());
-      final bytesPerRow = image.planes.first.bytesPerRow;
+    final Size imageSize = Size(image.width.toDouble(), image.height.toDouble());
+    final bytesPerRow = image.planes.first.bytesPerRow;
 
-      final sensorOrientation = _cameraController!.description.sensorOrientation;
-      final deviceOrientation = await NativeDeviceOrientationCommunicator().orientation();
-      InputImageRotation rotation = _calculateInputRotation(sensorOrientation, deviceOrientation);
+    final sensorOrientation = _cameraController!.description.sensorOrientation;
+    final deviceOrientation = await NativeDeviceOrientationCommunicator().orientation();
+    InputImageRotation rotation = _calculateInputRotation(sensorOrientation, deviceOrientation);
 
-      debugPrint('Camera sensor orientation: $sensorOrientation, Device orientation: $deviceOrientation, Rotation: $rotation');
+    debugPrint('Camera sensor orientation: $sensorOrientation, Device orientation: $deviceOrientation, Rotation: $rotation');
 
-      final inputImageFormat = image.format.group == ImageFormatGroup.yuv420
-          ? InputImageFormat.nv21
-          : InputImageFormat.bgra8888;
+    final inputImageFormat = image.format.group == ImageFormatGroup.yuv420
+        ? InputImageFormat.nv21
+        : InputImageFormat.bgra8888;
 
-      final inputImageData = InputImageMetadata(
-        size: imageSize,
-        rotation: rotation,
-        format: inputImageFormat,
-        bytesPerRow: bytesPerRow,
-      );
+    final inputImageData = InputImageMetadata(
+      size: imageSize,
+      rotation: rotation,
+      format: inputImageFormat,
+      bytesPerRow: bytesPerRow,
+    );
 
-      final inputImage = InputImage.fromBytes(
-        bytes: bytes,
-        metadata: inputImageData,
-      );
+    final inputImage = InputImage.fromBytes(
+      bytes: bytes,
+      metadata: inputImageData,
+    );
 
-      final List<Barcode> barcodes = await _barcodeScanner.processImage(inputImage);
+    final List<Barcode> barcodes = await _barcodeScanner.processImage(inputImage);
 
-      debugPrint('Detected ${barcodes.length} barcodes');
-      if (barcodes.isNotEmpty && mounted) {
-        final barcodeValue = barcodes.first.displayValue ?? 'No value';
-        debugPrint('Barcode detected: $barcodeValue (Type: ${barcodes.first.format})');
-        final decodedData = _decodeBarcodeData(barcodeValue);
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => DecodedInfoScreen(decodedData: decodedData),
-            ),
-          );
-        }
-      } else {
-        debugPrint('No barcodes detected in this frame');
+    debugPrint('Detected ${barcodes.length} barcodes');
+    if (barcodes.isNotEmpty && mounted) {
+      final barcodeValue = barcodes.first.displayValue ?? 'No value';
+      debugPrint('Barcode detected: $barcodeValue (Type: ${barcodes.first.format})');
+      if (mounted) {
         setState(() {
-          barcodeText = 'No barcode detected. Center barcode in the green box, adjust distance (15-30 cm), ensure good lighting.';
+          barcodeText = 'Barcode: $barcodeValue';
         });
       }
-    } catch (e, stackTrace) {
-      debugPrint('Error processing image: $e, StackTrace: $stackTrace');
+    } else if (mounted) {
+      debugPrint('No barcodes detected in this frame');
+      setState(() {
+        barcodeText = 'No barcode detected. Center barcode in the green box, adjust distance (15-30 cm), ensure good lighting.';
+      });
+    }
+  } catch (e, stackTrace) {
+    debugPrint('Error processing image: $e, StackTrace: $stackTrace');
+    if (mounted) {
       setState(() {
         barcodeText = 'Error: $e';
       });
-    } finally {
-      _isDetecting = false;
     }
+  } finally {
+    _isDetecting = false;
   }
-
+}
   Future<void> _saveFrameForDebugging(Uint8List bytes, int width, int height) async {
     try {
       final directory = await getTemporaryDirectory();
@@ -251,75 +254,84 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Barcode Scanner'),
-        actions: [
-          IconButton(
-            icon: Icon(_isFlashOn ? Icons.flash_off : Icons.flash_on),
-            onPressed: () async {
-              try {
-                await _cameraController!.setFlashMode(
-                  _isFlashOn ? FlashMode.off : FlashMode.torch,
-                );
-                setState(() {
-                  _isFlashOn = !_isFlashOn;
-                });
-              } catch (e) {
-                debugPrint('Error toggling flash: $e');
-              }
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          GestureDetector(
-            onTapDown: (details) {
-              final offset = Offset(
-                details.localPosition.dx / MediaQuery.of(context).size.width,
-                details.localPosition.dy / MediaQuery.of(context).size.height,
-              );
-              _cameraController?.setFocusPoint(offset);
-              debugPrint('Focus set to: $offset');
-            },
-            child: CameraPreview(_cameraController!),
-          ),
-          Center(
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.7,
-              height: MediaQuery.of(context).size.height * 0.5,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.green, width: 3),
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.transparent,
-              ),
-              child: const Center(
-                child: Text(
-                  'Place barcode here',
-                  style: TextStyle(color: Colors.white,fontSize: 16, fontWeight: FontWeight.bold),
+    return Navigator(
+      key: _navigatorKey,
+      onGenerateRoute: (RouteSettings settings) {
+        return MaterialPageRoute(
+          builder: (context) => Scaffold(
+            appBar: AppBar(
+              title: const Text('Barcode Scanner'),
+              actions: [
+                IconButton(
+                  icon: Icon(_isFlashOn ? Icons.flash_off : Icons.flash_on),
+                  onPressed: () async {
+                    try {
+                      await _cameraController!.setFlashMode(
+                        _isFlashOn ? FlashMode.off : FlashMode.torch,
+                      );
+                      if (mounted) {
+                        setState(() {
+                          _isFlashOn = !_isFlashOn;
+                        });
+                      }
+                    } catch (e) {
+                      debugPrint('Error toggling flash: $e');
+                    }
+                  },
                 ),
-              ),
+              ],
+            ),
+            body: Stack(
+              children: [
+                GestureDetector(
+                  onTapDown: (details) {
+                    final offset = Offset(
+                      details.localPosition.dx / MediaQuery.of(context).size.width,
+                      details.localPosition.dy / MediaQuery.of(context).size.height,
+                    );
+                    _cameraController?.setFocusPoint(offset);
+                    debugPrint('Focus set to: $offset');
+                  },
+                  child: CameraPreview(_cameraController!),
+                ),
+                Center(
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.7,
+                    height: MediaQuery.of(context).size.height * 0.5,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.green, width: 3),
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.transparent,
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Place barcode here',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 40,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    color: Colors.black54,
+                    child: Text(
+                      barcodeText,
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          Positioned(
-            bottom: 40,
-            left: 20,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              color: Colors.black54,
-              child: Text(
-                barcodeText,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -327,24 +339,22 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
     final parts = barcodeValue.split(';');
     final decodedData = <String, String>{};
 
-    // Attempt to decode base64 segments
     for (int i = 0; i < parts.length; i++) {
       try {
         final decoded = utf8.decode(base64Decode(parts[i]));
         decodedData['Field $i (Decoded)'] = decoded;
       } catch (e) {
-        // If decoding fails, treat as plain text
         switch (i) {
-          case 2: // Assuming third segment might be date of birth (e.g., 15102001)
+          case 2: // Date of Birth
             decodedData['Date of Birth'] = _formatDate(parts[i]);
             break;
-          case 3: // Assuming fourth segment might be issue date
+          case 3: // Issue Date
             decodedData['Issue Date'] = _formatDate(parts[i]);
             break;
-          case 4: // Assuming fifth segment might be expiry date
+          case 4: // Expiry Date
             decodedData['Expiry Date'] = _formatDate(parts[i]);
             break;
-          case 6: // Assuming seventh segment might be ID number
+          case 6: // ID Number
             decodedData['ID Number'] = parts[i];
             break;
           default:
@@ -363,6 +373,6 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
       final year = dateStr.substring(4);
       return '$day/$month/$year';
     }
-    return dateStr; // Return as is if not in expected format
+    return dateStr;
   }
 }

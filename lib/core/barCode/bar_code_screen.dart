@@ -233,13 +233,19 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
     if (_errorMessage != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Barcode Scanner')),
-        body: Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red))),
+        body: Center(
+          child: Text(_errorMessage!,
+           style: TextStyle(color: Colors.red),
+           ),
+           ),
       );
     }
 
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator()
+        ,),
       );
     }
 
