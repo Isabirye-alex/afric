@@ -15,6 +15,7 @@ class UserController extends GetxController {
   static UserController get instance => Get.find();
   late final TextEditingController phoneController = TextEditingController();
   var displayText = 'Loading...'.obs;
+  b
 
   @override
   void onInit() {
@@ -85,7 +86,11 @@ class UserController extends GetxController {
     // Check if any user has a non-empty phone number
     final hasPhone = users.any((u) => u.phoneNumber.trim().isNotEmpty);
     if (hasPhone) {
-      Get.dialog(PopUpDialog(child: ViewWidget()), barrierDismissible: false);
+      Get.dialog(
+        PopUpDialog(child: ViewWidget(),
+        ),
+         barrierDismissible: false
+         );
     } else {
       Get.dialog(
         PopUpDialog(child: RegisterScreen()),

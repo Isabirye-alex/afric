@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import '../../core/changeNumber/change_number_controller.dart';
 import '../../others/widgets/reusables/dotted_container.dart';
 import '../../others/widgets/reusables/ready_widget.dart';

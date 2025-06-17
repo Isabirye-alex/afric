@@ -16,11 +16,13 @@ class _ViewWidgetState extends State<ViewWidget> {
   final TextEditingController inputController = TextEditingController();
   String sessionText = '';
   late Future<UssdViewObject> _futureResults;
+  bool isLoading = true;
   @override
   void initState() {
     super.initState();
     sessionText = inputController.text.trim();
     _futureResults = sendUssdRequestWithResponse(sessionText);
+    isLoading = false;
   }
 
   Future<UssdViewObject> sendUssdRequestWithResponse(String userInput) async {
@@ -52,8 +54,8 @@ class _ViewWidgetState extends State<ViewWidget> {
       future: _futureResults,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
+          isLoading = true;
+          } else if (snapshot.hasError) {
           return Text(
             'Error: ${snapshot.error}',
             style: TextStyle(fontSize: 16, color: Colors.red),
@@ -160,6 +162,19 @@ class _ViewWidgetState extends State<ViewWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(padding: EdgeInsets.zero, child: buildFutureBuilder());
+    return Padding(
+      padding: EdgeInsets.zero,
+      child: isLoading
+          ? Container(
+              height: 40,
+              width: MediaQuery.of(context).size.width * 0.8,
+              decoration: BoxDecoration(
+                color: Colors.grey,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: CircularProgressIndicator(),
+            )
+          : buildFutureBuilder(),
+    );
   }
 }
