@@ -149,7 +149,7 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
       } else {
         debugPrint('No barcodes detected in this frame');
         setState(() {
-          barcodeText = 'No barcode detected. Center barcode in the green box, adjust distance (15-30 cm), ensure good lighting.';
+          barcodeText = 'No barcode detected. Center barcode in the green box';
         });
       }
     } catch (e, stackTrace) {
@@ -161,6 +161,7 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
       _isDetecting = false;
     }
   }
+
 
   Future<void> _saveFrameForDebugging(Uint8List bytes, int width, int height) async {
     try {
