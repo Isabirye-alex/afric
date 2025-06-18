@@ -129,9 +129,9 @@ class _BarcodePracticeState extends State<BarcodePractice>
 
         final sensorOrientation =
             cameraController!.description.sensorOrientation;
-        final deviceOrientation =await NativeDeviceOrientationCommunicator()
+        final deviceOrientation = await NativeDeviceOrientationCommunicator()
             .orientation();
-            
+
         InputImageRotation rotation = calculateRotation(
           sensorOrientation,
           deviceOrientation,
@@ -161,7 +161,7 @@ class _BarcodePracticeState extends State<BarcodePractice>
         final List<Barcode> barcodes = await barcodeScanner!.processImage(
           inputImage,
         );
-        debugPrint('Detected ${barcodes.length} barcoes');
+        debugPrint('Detected ${barcodes.length} barcodes');
         if (barcodes.isNotEmpty && mounted) {
           final barcodeValue = barcodes.first.displayValue ?? 'No value';
           debugPrint(
@@ -262,6 +262,86 @@ class _BarcodePracticeState extends State<BarcodePractice>
 
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    if (errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Barcode Scanner'), centerTitle: true),
+        body: Center(
+          child: Text(errorMessage ?? '', style: TextStyle(color: Colors.red)),
+        ),
+      );
+    }
+    if (cameraController == null || !cameraController!.value.isInitialized) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Barcode Scanner'), centerTitle: true),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Barcode Scanner'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: () async {
+              try {
+                await cameraController!.setFlashMode(
+                  isFlashOn ? FlashMode.off : FlashMode.torch,
+                );
+              } catch (e) {
+                debugPrint('Error toggling flash: $e');
+              }
+            },
+            icon: Icon(isFlashOn ? Icons.flash_off : Icons.flash_on),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          GestureDetector(
+            onTapDown: (details) {
+              final offSet = Offset(
+                details.localPosition.dx / MediaQuery.of(context).size.width,
+                details.localPosition.dy / MediaQuery.of(context).size.height,
+              );
+              cameraController!.setFocusPoint(offSet);
+              debugPrint('Focus Mode set to : $offSet');
+            },
+            child: CameraPreview(cameraController!),
+          ),
+          Center(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.7,
+              height: MediaQuery.of(context).size.height * 0.5,
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                 border: Border.all(color: Colors.green),
+                 borderRadius: BorderRadius.circular(12),
+                 ),
+                 child: Text(barcodeText,
+                 style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                 ),
+            ),
+          ),
+            Positioned(
+            bottom: 40,
+            left: 20,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              color: Colors.black54,
+              child: Text(
+                barcodeText,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
