@@ -17,8 +17,8 @@ class BarcodePractice extends StatefulWidget {
 
 class _BarcodePracticeState extends State<BarcodePractice>
     with WidgetsBindingObserver {
-   CameraController? cameraController;
-   BarcodeScanner? barcodeScanner;
+  CameraController? cameraController;
+  BarcodeScanner? barcodeScanner;
   bool isDetecting = false;
   String barcodeText = 'Scan a barcode...';
   String? errorMessage;
@@ -36,8 +36,9 @@ class _BarcodePracticeState extends State<BarcodePractice>
         initCamera();
       } else {
         setState(() {
-          errorMessage =
-              'Camera permission denied. Please grant permission in settings.';
+          Navigator.pop(context);
+          // errorMessage =
+          // 'Camera permission denied. Please grant permission in settings.';
         });
       }
     });
@@ -319,21 +320,22 @@ class _BarcodePracticeState extends State<BarcodePractice>
               height: MediaQuery.of(context).size.height * 0.5,
               decoration: BoxDecoration(
                 color: Colors.transparent,
-                 border: Border.all(color: Colors.green),
-                 borderRadius: BorderRadius.circular(12),
-                 ),
-                 child: Center(
-                   child: Text(barcodeText,
-                   style: TextStyle(
+                border: Border.all(color: Colors.green),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  barcodeText,
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                                   ),
-                   ),
-                 ),
+                  ),
+                ),
+              ),
             ),
           ),
-            Positioned(
+          Positioned(
             bottom: 40,
             left: 20,
             right: 20,
