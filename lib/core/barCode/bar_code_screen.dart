@@ -96,7 +96,7 @@ class _BarCodeScreenState extends State<BarCodeScreen> with WidgetsBindingObserv
 
     debugPrint('Processing image: format=${image.format.group}, raw=${image.format.raw}, '
         'width=${image.width}, height=${image.height}, bytesPerRow=${image.planes.first.bytesPerRow}');
-
+        
     _isDetecting = true;
 
     try {
