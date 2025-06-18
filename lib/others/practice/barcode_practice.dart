@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -124,7 +126,7 @@ class _BarcodePracticeState extends State<BarcodePractice>
 
         final sensorOrientation =
             cameraController!.description.sensorOrientation;
-        final deviceOrientation = NativeDeviceOrientationCommunicator()
+        final deviceOrientation = await NativeDeviceOrientationCommunicator()
             .orientation();
 
         InputImageRotation rotation = calculateRotation(
@@ -134,8 +136,8 @@ class _BarcodePracticeState extends State<BarcodePractice>
 
         final inputImageFormat =
             cameraImage.format.group == ImageFormatGroup.yuv420
-            ? ImageFormatGroup.nv21
-            : ImageFormatGroup.bgra8888;
+            ? InputImageFormat.nv21
+            : InputImageFormat.bgra8888;
 
         final inputMetaData = InputImageMetadata(
           size: imageSize,
@@ -148,6 +150,20 @@ class _BarcodePracticeState extends State<BarcodePractice>
           bytes: bytes,
           metadata: inputMetaData,
         );
+
+        final List<Barcode> barcodes = await barcodeScanner!.processImage(
+          inputImage,
+        );
+
+        if (barcodes.isNotEmpty && mounted) {
+          final barcodeValue = barcodes.first.displayValue ?? 'No value';
+          debugPrint('Detected: $barcodeValue, Type ${barcodes.first.format}');
+        } else {
+          debugPrint('No barcodes detected');
+          setState(() {
+            errorMessage = 'No barcodes detected';
+          });
+        }
       }
     } catch (e, stackTrace) {
       debugPrint('Error Processing image stream! $e, $stackTrace');
@@ -160,8 +176,58 @@ class _BarcodePracticeState extends State<BarcodePractice>
     }
   }
 
+  InputImageRotation calculateRotation(
+    int sensorOrientation,
+    NativeDeviceOrientation deviceOrientation,
+  ) {
+    int rotationDegress;
+    switch (deviceOrientation) {
+      case NativeDeviceOrientation.landscapeLeft:
+        rotationDegress = 90;
+        break;
+      case NativeDeviceOrientation.landscapeRight:
+        rotationDegress = 270;
+        break;
+      case NativeDeviceOrientation.portraitDown:
+        rotationDegress = 180;
+        break;
+      case NativeDeviceOrientation.portraitUp:
+      default:
+        rotationDegress = 0;
+    }
+
+    final totalRotation = (sensorOrientation - rotationDegress + 360) % 360;
+
+    switch (totalRotation) {
+      case 90:
+        return InputImageRotation.rotation90deg;
+      case 180:
+        return InputImageRotation.rotation180deg;
+      case 270:
+        return InputImageRotation.rotation270deg;
+      case 0:
+      default:
+        return InputImageRotation.rotation0deg;
+    }
+  }
+
   Future<void> saveFrameForDebug(Uint8List bytes, int width, int height) async {
-    return;
+    try {
+      final directory = await getTemporaryDirectory();
+      final filePath =
+          '${directory.path}/debug_frame_${DateTime.now().millisecondsSinceEpoch}.yuv';
+      await File(filePath).writeAsBytes(bytes);
+      debugPrint('Saved debug frame to: $filePath');
+    } catch (e) {
+      debugPrint('Error saving debug frame: $e');
+    }
+  }
+    
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (cameraController == null || !cameraController!.value.isInitialized) {}
   }
 
   @override
