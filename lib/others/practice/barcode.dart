@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:flutter/foundation.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:camera/camera.dart';
 
@@ -26,6 +29,7 @@ class _BarcodePracticeState extends State<BarcodePractice>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.all]);
     requestCameraPermission().then((granted) {
       if (granted) {
@@ -87,8 +91,9 @@ class _BarcodePracticeState extends State<BarcodePractice>
           errorMessage = 'Failed to initialize camera: $e';
         });
       }
+
+      debugPrint('Camera initialization error: $e');
     }
-    debugPrint('Camera initialization error: $e');
   }
 
   Future<void> processCameraImage(CameraImage cameraImage) async {
@@ -124,8 +129,9 @@ class _BarcodePracticeState extends State<BarcodePractice>
 
         final sensorOrientation =
             cameraController!.description.sensorOrientation;
-        final deviceOrientation = NativeDeviceOrientationCommunicator()
+        final deviceOrientation =await NativeDeviceOrientationCommunicator()
             .orientation();
+            
         InputImageRotation rotation = calculateRotation(
           sensorOrientation,
           deviceOrientation,
@@ -179,7 +185,80 @@ class _BarcodePracticeState extends State<BarcodePractice>
     }
   }
 
-  
+  Future<void> saveFrameForDebugging(
+    Uint8List bytes,
+    int width,
+    int height,
+  ) async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final filePath =
+          '${directory.path}/debug_frame_${DateTime.now().millisecondsSinceEpoch}.yuv';
+      await File(filePath).writeAsBytes(bytes);
+      debugPrint('Saved debug frame to: $filePath');
+    } catch (e) {
+      debugPrint('Error saving debug frame: $e');
+    }
+  }
+
+  InputImageRotation calculateRotation(
+    int sensorOrientation,
+    NativeDeviceOrientation deviceOrientation,
+  ) {
+    int rotationDeg;
+
+    switch (deviceOrientation) {
+      case NativeDeviceOrientation.landscapeLeft:
+        rotationDeg = 90;
+        break;
+      case NativeDeviceOrientation.landscapeRight:
+        rotationDeg = 270;
+        break;
+      case NativeDeviceOrientation.portraitDown:
+        rotationDeg = 180;
+        break;
+      case NativeDeviceOrientation.portraitUp:
+      default:
+        rotationDeg = 0;
+    }
+
+    final totalRotation = (sensorOrientation - rotationDeg + 360) % 360;
+    switch (totalRotation) {
+      case 90:
+        return InputImageRotation.rotation90deg;
+      case 180:
+        return InputImageRotation.rotation180deg;
+      case 270:
+        return InputImageRotation.rotation270deg;
+      case 0:
+      default:
+        return InputImageRotation.rotation0deg;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (cameraController == null || !cameraController!.value.isInitialized) {
+      return;
+    }
+    if (state == AppLifecycleState.paused) {
+      cameraController!.stopImageStream();
+      debugPrint('Live Cam Feed stopped due to app pause');
+    } else if (state == AppLifecycleState.resumed) {
+      cameraController!.startImageStream(processCameraImage);
+      debugPrint('Live cam feed resumed');
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    cameraController!.stopImageStream();
+    cameraController!.dispose();
+    barcodeScanner!.close();
+  }
 
   @override
   Widget build(BuildContext context) {
