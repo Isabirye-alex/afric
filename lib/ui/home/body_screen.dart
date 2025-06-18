@@ -1,4 +1,5 @@
 import 'package:afri/core/barCode/bar_code_screen.dart';
+import 'package:afri/others/practice/barcode.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/changeNumber/change_number_controller.dart';
@@ -58,7 +59,7 @@ class _BodyScreenState extends State<BodyScreen> {
                       child: DottedContainer(
                         getIcon: Icons.dialpad,
                         getText: 'AIRTIME',
-                        onTap: () => controller.checkUserStatus(),
+                        onTap: () =>Get.to(()=>BarcodePractice()),
                       ),
                     ),
                   ],

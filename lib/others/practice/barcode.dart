@@ -17,8 +17,8 @@ class BarcodePractice extends StatefulWidget {
 
 class _BarcodePracticeState extends State<BarcodePractice>
     with WidgetsBindingObserver {
-  late CameraController? cameraController;
-  late BarcodeScanner? barcodeScanner;
+   CameraController? cameraController;
+   BarcodeScanner? barcodeScanner;
   bool isDetecting = false;
   String barcodeText = 'Scan a barcode...';
   String? errorMessage;
@@ -287,6 +287,11 @@ class _BarcodePracticeState extends State<BarcodePractice>
                 await cameraController!.setFlashMode(
                   isFlashOn ? FlashMode.off : FlashMode.torch,
                 );
+                if (mounted) {
+                  setState(() {
+                    isFlashOn = !isFlashOn;
+                  });
+                }
               } catch (e) {
                 debugPrint('Error toggling flash: $e');
               }
@@ -317,12 +322,14 @@ class _BarcodePracticeState extends State<BarcodePractice>
                  border: Border.all(color: Colors.green),
                  borderRadius: BorderRadius.circular(12),
                  ),
-                 child: Text(barcodeText,
-                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                 child: Center(
+                   child: Text(barcodeText,
+                   style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                                   ),
+                   ),
                  ),
             ),
           ),
