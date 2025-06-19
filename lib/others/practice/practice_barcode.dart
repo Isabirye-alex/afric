@@ -1,12 +1,14 @@
 import 'dart:convert';
-import 'package:get/get.dart';
+import 'dart:io';
 import 'package:afri/core/barCode/decode_data.dart';
-import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:camera/camera.dart';
-import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:flutter/foundation.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/material.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class PracticeBarcode extends StatefulWidget {
   const PracticeBarcode({super.key});
@@ -19,13 +21,14 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
     with WidgetsBindingObserver {
   CameraController? cameraController;
   BarcodeScanner? barcodeScanner;
-  late String? errorMessage = '';
-  late String barcodeText;
+  String? errorMessage = '';
+  String barcodeText = 'Place Barcode here';
   int frameCount = 0;
-  int frameSkip = 5;
-  bool isDetecting = true;
+  int frameSkip = 10;
+  bool isDetecting = false;
   bool isFlashon = false;
   Map<String, String>? decodedResult;
+  bool shouldRestartCamera = false;
 
   @override
   void initState() {
@@ -45,116 +48,257 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
 
   Future<void> initCamera() async {
     try {
-      final camera = await availableCameras();
-      final backCamera = camera.firstWhere(
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        setState(() {
+          errorMessage = 'No cameras available on this device.';
+        });
+        return;
+      }
+      final backCamera = cameras.firstWhere(
         (camera) => camera.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first, // Fallback to first available camera
       );
+      print('>>>> initCamera() reached');
 
       cameraController = CameraController(
         backCamera,
-        ResolutionPreset.low,
+        ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
 
       await cameraController!.initialize();
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
-      await cameraController!.startImageStream(processImageFrame);
+      await cameraController!.startImageStream((image)async {
+        print('✅ Image stream callback received');
+        debugPrint('✅ Image stream callback received');
+       await processImageFrame(image); // then delegate
+      });
+
+      // await cameraController!.startImageStream(processImageFrame);
       setState(() {});
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Exception in availableCameras: $e');
+      print(stackTrace);
       debugPrint('Error initializing camera: $e');
       setState(() {
-        errorMessage = 'Faild to access the camera try again';
+        errorMessage = 'Failed to initialize camera: $e';
       });
     }
   }
 
   Future<void> processImageFrame(CameraImage cameraImage) async {
-    if (frameCount++ % frameSkip != 0) {
-      return;
-    }
-    if (isDetecting || !mounted) {
-      return;
-    }
+    debugPrint('🧠 Entered processCameraImage()');
+    if (isDetecting || !mounted) return;
+    frameCount++;
+    if (frameCount % frameSkip != 0) return;
 
     isDetecting = true;
+    try {
+      debugPrint('📸 Processing frame: $frameCount');
 
-    if (frameCount == frameSkip) {
-      try {
-        final WriteBuffer allBytes = WriteBuffer();
-        for (final plane in cameraImage.planes) {
-          allBytes.putUint8List(plane.bytes);
-        }
-        final bytes = allBytes.done().buffer.asUint8List();
-
-        final bytesPerRow = cameraImage.planes.first.bytesPerRow;
-
-        final Size imageSize = Size(
-          cameraImage.width.toDouble(),
-          cameraImage.width.toDouble(),
-        );
-
-        final sensorOrientation =
-            cameraController!.description.sensorOrientation;
-        final deviceOrientation = await NativeDeviceOrientationCommunicator()
-            .orientation();
-
-        InputImageRotation rotation = calculateRotation(
-          sensorOrientation,
-          deviceOrientation,
-        );
-
-        final inputImageFormat =
-            cameraImage.format.group == ImageFormatGroup.yuv420
-            ? InputImageFormat.nv21
-            : InputImageFormat.bgra8888;
-        final inputMetaData = InputImageMetadata(
-          size: imageSize,
-          rotation: rotation,
-          format: inputImageFormat,
-          bytesPerRow: bytesPerRow,
-        );
-
-        final inputImage = InputImage.fromBytes(
-          bytes: bytes,
-          metadata: inputMetaData,
-        );
-
-        final List<Barcode> barcodes = await barcodeScanner!.processImage(
-          inputImage,
-        );
-        debugPrint('Detected ${barcodes.length} barcodes');
-        if (barcodes.isNotEmpty && mounted) {
-          final barcodeValue = barcodes.first.displayValue;
-          debugPrint(
-            'Barcode Detected: $barcodeValue, Type ${barcodes.first.format}',
-          );
-          if (barcodeValue != null) {
-            final result = decodeBarcodeData(barcodeValue);
-            setState(() {
-              decodedResult = result;
-            });
-            await cameraController?.stopImageStream();
-            isDetecting = false;
-
-            if (mounted) {
-              Get.to(() => DecodedDataScreen(decodedData: result))!.then((_) {
-                if (mounted) {
-                  cameraController!.startImageStream(processImageFrame);
-                }
-              });
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('Lexus');
-        setState(() {
-          errorMessage = 'Could not process barcode frames';
-        });
+      final WriteBuffer allBytes = WriteBuffer();
+      for (final plane in cameraImage.planes) {
+        allBytes.putUint8List(plane.bytes);
       }
+
+      final bytes = allBytes.done().buffer.asUint8List();
+      debugPrint('🟢 Image bytes ready: ${bytes.length}');
+
+      final Size imageSize = Size(
+        cameraImage.width.toDouble(),
+        cameraImage.height.toDouble(),
+      );
+
+      final bytesPerRow = cameraImage.planes.first.bytesPerRow;
+
+      final sensorOrientation = cameraController!.description.sensorOrientation;
+      final deviceOrientation = await NativeDeviceOrientationCommunicator()
+          .orientation();
+      debugPrint('📐 Sensor: $sensorOrientation, Device: $deviceOrientation');
+
+      final InputImageRotation rotation = calculateRotation(
+        sensorOrientation,
+        deviceOrientation,
+      );
+      debugPrint('🔁 Calculated rotation: $rotation');
+
+      final InputImageFormat inputImageFormat =
+          cameraImage.format.group == ImageFormatGroup.yuv420
+          ? InputImageFormat.nv21
+          : InputImageFormat.bgra8888;
+
+      final inputMetaData = InputImageMetadata(
+        size: imageSize,
+        rotation: rotation,
+        format: inputImageFormat,
+        bytesPerRow: bytesPerRow,
+      );
+
+      final inputImage = InputImage.fromBytes(
+        bytes: bytes,
+        metadata: inputMetaData,
+      );
+
+      debugPrint('🤖 Calling barcodeScanner.processImage...');
+      final List<Barcode> barcodes = await barcodeScanner!.processImage(
+        inputImage,
+      );
+
+      debugPrint('📦 Detected ${barcodes.length} barcode(s)');
+      if (barcodes.isNotEmpty) {
+        final barcodeValue = barcodes.first.displayValue ?? 'No value';
+        debugPrint(
+          '✅ Barcode: $barcodeValue, Format: ${barcodes.first.format}',
+        );
+        // final result = decodeBarcodeData(barcodeValue);
+        // setState(() {
+        //   decodedResult = result;
+        // });
+
+        // await cameraController?.stopImageStream();
+        // isDetecting = false;
+
+        // if (!mounted) return;
+
+        // debugPrint('🔁 Navigating to decoded screen...');
+        // Future.delayed(Duration.zero, () async {
+        //   await Get.to(() => DecodedDataScreen(decodedData: result));
+        //   if (mounted) {
+        //     debugPrint(
+        //       '↩️ Returned from decoded screen, restarting stream...',
+        //     );
+        //     await cameraController?.startImageStream(processImageFrame);
+        //   }
+        // });
+      } else {
+        debugPrint('⚠️ No barcode detected in frame');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Exception in processCameraImage: $e');
+      debugPrint('📄 Stack trace:\n$stackTrace');
+    } finally {
+      isDetecting = false;
+    }
+  }
+
+  // Future<void> processImageFrame(CameraImage cameraImage) async {
+  //   print('🧠 Entered processCameraImage()');
+  //   if (isDetecting || !mounted) {
+  //     return;
+  //   }
+  //   if (frameCount++ % frameSkip != 0) {
+  //     return;
+  //   }
+  //
+  //   isDetecting = true;
+  //   try {
+  //     final WriteBuffer allBytes = WriteBuffer();
+  //     for (final plane in cameraImage.planes) {
+  //       allBytes.putUint8List(plane.bytes);
+  //     }
+  //     final bytes = allBytes.done().buffer.asUint8List();
+  //
+  //     if (frameCount == frameSkip) {
+  //       await saveFrameForDebugging(
+  //         bytes,
+  //         cameraImage.width,
+  //         cameraImage.height,
+  //       );
+  //     }
+  //
+  //     final bytesPerRow = cameraImage.planes.first.bytesPerRow;
+  //
+  //     final Size imageSize = Size(
+  //       cameraImage.width.toDouble(),
+  //       cameraImage.height.toDouble(),
+  //     );
+  //
+  //     final sensorOrientation = cameraController!.description.sensorOrientation;
+  //     final deviceOrientation = await NativeDeviceOrientationCommunicator()
+  //         .orientation();
+  //
+  //     InputImageRotation rotation = calculateRotation(
+  //       sensorOrientation,
+  //       deviceOrientation,
+  //     );
+  //
+  //     final inputImageFormat =
+  //         cameraImage.format.group == ImageFormatGroup.yuv420
+  //         ? InputImageFormat.nv21
+  //         : InputImageFormat.bgra8888;
+  //
+  //     final inputMetaData = InputImageMetadata(
+  //       size: imageSize,
+  //       rotation: rotation,
+  //       format: inputImageFormat,
+  //       bytesPerRow: bytesPerRow,
+  //     );
+  //
+  //     final inputImage = InputImage.fromBytes(
+  //       bytes: bytes,
+  //       metadata: inputMetaData,
+  //     );
+  //
+  //     final List<Barcode> barcodes = await barcodeScanner!.processImage(
+  //       inputImage,
+  //     );
+  //     print('Detected ${barcodes.length} barcodes');
+  //     debugPrint('Detected ${barcodes.length} barcodes');
+  //     if (barcodes.isNotEmpty && mounted) {
+  //       final barcodeValue = barcodes.first.displayValue;
+  //       print('Barcode Detected: $barcodeValue, Type ${barcodes.first.format}');
+  //       debugPrint(
+  //         'Barcode Detected: $barcodeValue, Type ${barcodes.first.format}',
+  //       );
+  //       if (barcodeValue != null) {
+  //         final result = decodeBarcodeData(barcodeValue);
+  //         setState(() {
+  //           decodedResult = result;
+  //         });
+  //
+  //         await cameraController?.stopImageStream();
+  //         isDetecting = false;
+  //
+  //         if (!mounted) return;
+  //
+  //         debugPrint('🔁 Navigating to decoded screen...');
+  //         Future.delayed(Duration.zero, () async {
+  //           await Get.to(() => DecodedDataScreen(decodedData: result));
+  //           if (mounted) {
+  //             debugPrint(
+  //               '↩️ Returned from decoded screen, restarting stream...',
+  //             );
+  //             await cameraController?.startImageStream(processImageFrame);
+  //           }
+  //         });
+  //       }
+  //     }
+  //   } catch (e, stackTrace) {
+  //     debugPrint('Error processing image: $e, StackTrace: $stackTrace');
+  //     setState(() {
+  //       barcodeText = 'Error: $e';
+  //     });
+  //   } finally {
+  //     isDetecting = false;
+  //   }
+  // }
+
+  Future<void> saveFrameForDebugging(
+    Uint8List bytes,
+    int width,
+    int height,
+  ) async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final filePath =
+          '${directory.path}/debug_frame_${DateTime.now().millisecondsSinceEpoch}.yuv';
+      await File(filePath).writeAsBytes(bytes);
+      debugPrint('Saved debug frame to: $filePath');
+    } catch (e) {
+      debugPrint('Error saving debug frame: $e');
     }
   }
 
@@ -196,18 +340,31 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
 
   Future<bool> requestCameraPermission() async {
     try {
+      final status = await Permission.camera.status;
+      if (status.isGranted) {
+        return true;
+      }
       final response = await Permission.camera.request();
       if (response.isGranted) {
         return true;
       } else if (response.isPermanentlyDenied) {
-        openAppSettings();
+        setState(() {
+          errorMessage =
+              'Camera permission permanently denied. Please enable it in settings.';
+        });
+        await openAppSettings();
+        return false;
+      } else {
+        setState(() {
+          errorMessage =
+              'Camera permission denied. Please grant permission to use the camera.';
+        });
         return false;
       }
-      return false;
     } catch (e) {
-      debugPrint('Error! Could not get camera permission');
+      debugPrint('Error requesting camera permission: $e');
       setState(() {
-        errorMessage = 'Error getting camera permission';
+        errorMessage = 'Error requesting camera permission: $e';
       });
       return false;
     }
@@ -272,41 +429,60 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
     }
     if (state == AppLifecycleState.paused) {
       cameraController!.stopImageStream();
-    } else if (state == AppLifecycleState.resumed) {
+    } else if (shouldRestartCamera) {
       cameraController!.startImageStream(processImageFrame);
+      shouldRestartCamera = false;
     }
   }
 
   @override
   void dispose() {
     super.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    cameraController!.stopImageStream();
+    cameraController!.dispose();
+    barcodeScanner!.close();
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
-    if(errorMessage != null){
-          if (errorMessage != null) {
-        return Scaffold(
-          appBar: AppBar(title: Text('Barcode Scanner'), centerTitle: true),
-          body: Center(
-            child: Text(
-              errorMessage ?? '',
-              style: TextStyle(color: Colors.red),
-            ),
+    if (errorMessage != null && errorMessage!.isNotEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Barcode Scanner'), centerTitle: true),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(errorMessage!, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    errorMessage = null;
+                  });
+                  requestCameraPermission().then((granted) {
+                    if (granted) initCamera();
+                  });
+                },
+                child: const Text('Retry'),
+              ),
+            ],
           ),
-        );
-      }
+        ),
+      );
     }
-      if (cameraController == null || !cameraController!.value.isInitialized) {
-        return Scaffold(
-          appBar: AppBar(title: Text('Barcode Scanner'), centerTitle: true),
-          body: Center(child: CircularProgressIndicator()),
-        );
-      }
-       
-     return Scaffold(
+
+    if (cameraController == null || !cameraController!.value.isInitialized) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Barcode Scanner'), centerTitle: true),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
       appBar: AppBar(
-        title: Text('Barcode Scanner'),
+        title: const Text('Barcode Scanner'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -315,11 +491,9 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
                 await cameraController!.setFlashMode(
                   isFlashon ? FlashMode.off : FlashMode.torch,
                 );
-                if (mounted) {
-                  setState(() {
-                    isFlashon = !isFlashon;
-                  });
-                }
+                setState(() {
+                  isFlashon = !isFlashon;
+                });
               } catch (e) {
                 debugPrint('Error toggling flash: $e');
               }
@@ -330,15 +504,9 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
       ),
       body: Stack(
         children: [
-          GestureDetector(
-            onTapDown: (details) {
-              final offSet = Offset(
-                details.localPosition.dx / MediaQuery.of(context).size.width,
-                details.localPosition.dy / MediaQuery.of(context).size.height,
-              );
-              cameraController!.setFocusPoint(offSet);
-              debugPrint('Focus Mode set to : $offSet');
-            },
+          SizedBox(
+            width: MediaQuery.of(context).size.width,
+            height: MediaQuery.of(context).size.height,
             child: CameraPreview(cameraController!),
           ),
           Center(
@@ -353,7 +521,7 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
               child: Center(
                 child: Text(
                   barcodeText,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -381,7 +549,3 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
     );
   }
 }
-
-
-  
-

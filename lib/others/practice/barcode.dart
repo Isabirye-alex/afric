@@ -98,7 +98,7 @@ class _BarcodePracticeState extends State<BarcodePractice>
     if (frameCount++ % frameSkip != 0) {
       return;
     }
-    if (isDetecting || mounted) {
+    if (isDetecting || !mounted) {
       return;
     }
     isDetecting = true;
