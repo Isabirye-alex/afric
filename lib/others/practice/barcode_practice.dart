@@ -1,10 +1,8 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
-import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
@@ -222,12 +220,27 @@ class _BarcodePracticeState extends State<BarcodePractice>
       debugPrint('Error saving debug frame: $e');
     }
   }
-    
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (cameraController == null || !cameraController!.value.isInitialized) {}
+    if (cameraController == null || !cameraController!.value.isInitialized) {
+      return;
+    }
+    if (state == AppLifecycleState.paused) {
+      cameraController!.stopImageStream();
+    } else if (state == AppLifecycleState.resumed) {
+      cameraController!.startImageStream(processImageStream);
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    cameraController!.stopImageStream();
+    cameraController!.dispose();
+    barcodeScanner!.close();
   }
 
   @override

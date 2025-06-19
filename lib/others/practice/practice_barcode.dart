@@ -1,27 +1,31 @@
+import 'dart:convert';
+import 'package:get/get.dart';
+import 'package:afri/core/barCode/decode_data.dart';
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:flutter/foundation.dart';
-import 'package:native_device_orientation/native_device_orientation.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:camera/camera.dart';
+import 'package:native_device_orientation/native_device_orientation.dart';
 
-class BarcodePractice extends StatefulWidget {
-  const BarcodePractice({super.key});
+class PracticeBarcode extends StatefulWidget {
+  const PracticeBarcode({super.key});
 
   @override
-  State<BarcodePractice> createState() => _BarcodePracticeState();
+  State<PracticeBarcode> createState() => _PracticeBarcodeState();
 }
 
-class _BarcodePracticeState extends State<BarcodePractice>
+class _PracticeBarcodeState extends State<PracticeBarcode>
     with WidgetsBindingObserver {
   CameraController? cameraController;
   BarcodeScanner? barcodeScanner;
-  bool isDetecting = false;
-  String barcodeText = 'Scan a barcode...';
-  String? errorMessage;
+  late String? errorMessage = '';
+  late String barcodeText;
   int frameCount = 0;
-  static const int frameSkip = 5;
-  bool isFlashOn = false;
+  int frameSkip = 5;
+  bool isDetecting = true;
+  bool isFlashon = false;
+  Map<String, String>? decodedResult;
 
   @override
   void initState() {
@@ -33,12 +37,161 @@ class _BarcodePracticeState extends State<BarcodePractice>
         initCamera();
       } else {
         setState(() {
-          Navigator.pop(context);
-          // errorMessage =
-          // 'Camera permission denied. Please grant permission in settings.';
+          errorMessage = 'Grant the app Camera access in the system settings';
         });
       }
     });
+  }
+
+  Future<void> initCamera() async {
+    try {
+      final camera = await availableCameras();
+      final backCamera = camera.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.back,
+      );
+
+      cameraController = CameraController(
+        backCamera,
+        ResolutionPreset.low,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420,
+      );
+
+      await cameraController!.initialize();
+      if (!mounted) {
+        return;
+      }
+
+      await cameraController!.startImageStream(processImageFrame);
+      setState(() {});
+    } catch (e) {
+      debugPrint('Error initializing camera: $e');
+      setState(() {
+        errorMessage = 'Faild to access the camera try again';
+      });
+    }
+  }
+
+  Future<void> processImageFrame(CameraImage cameraImage) async {
+    if (frameCount++ % frameSkip != 0) {
+      return;
+    }
+    if (isDetecting || !mounted) {
+      return;
+    }
+
+    isDetecting = true;
+
+    if (frameCount == frameSkip) {
+      try {
+        final WriteBuffer allBytes = WriteBuffer();
+        for (final plane in cameraImage.planes) {
+          allBytes.putUint8List(plane.bytes);
+        }
+        final bytes = allBytes.done().buffer.asUint8List();
+
+        final bytesPerRow = cameraImage.planes.first.bytesPerRow;
+
+        final Size imageSize = Size(
+          cameraImage.width.toDouble(),
+          cameraImage.width.toDouble(),
+        );
+
+        final sensorOrientation =
+            cameraController!.description.sensorOrientation;
+        final deviceOrientation = await NativeDeviceOrientationCommunicator()
+            .orientation();
+
+        InputImageRotation rotation = calculateRotation(
+          sensorOrientation,
+          deviceOrientation,
+        );
+
+        final inputImageFormat =
+            cameraImage.format.group == ImageFormatGroup.yuv420
+            ? InputImageFormat.nv21
+            : InputImageFormat.bgra8888;
+        final inputMetaData = InputImageMetadata(
+          size: imageSize,
+          rotation: rotation,
+          format: inputImageFormat,
+          bytesPerRow: bytesPerRow,
+        );
+
+        final inputImage = InputImage.fromBytes(
+          bytes: bytes,
+          metadata: inputMetaData,
+        );
+
+        final List<Barcode> barcodes = await barcodeScanner!.processImage(
+          inputImage,
+        );
+        debugPrint('Detected ${barcodes.length} barcodes');
+        if (barcodes.isNotEmpty && mounted) {
+          final barcodeValue = barcodes.first.displayValue;
+          debugPrint(
+            'Barcode Detected: $barcodeValue, Type ${barcodes.first.format}',
+          );
+          if (barcodeValue != null) {
+            final result = decodeBarcodeData(barcodeValue);
+            setState(() {
+              decodedResult = result;
+            });
+            await cameraController?.stopImageStream();
+            isDetecting = false;
+
+            if (mounted) {
+              Get.to(() => DecodedDataScreen(decodedData: result))!.then((_) {
+                if (mounted) {
+                  cameraController!.startImageStream(processImageFrame);
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Lexus');
+        setState(() {
+          errorMessage = 'Could not process barcode frames';
+        });
+      }
+    }
+  }
+
+  InputImageRotation calculateRotation(
+    int sensorOrientation,
+    NativeDeviceOrientation deviceOrientation,
+  ) {
+    int rotationDegress;
+    switch (deviceOrientation) {
+      case NativeDeviceOrientation.landscapeLeft:
+        rotationDegress = 90;
+        break;
+      case NativeDeviceOrientation.landscapeRight:
+        rotationDegress = 270;
+        break;
+      case NativeDeviceOrientation.portraitDown:
+        rotationDegress = 180;
+        break;
+      case NativeDeviceOrientation.portraitUp:
+      default:
+        rotationDegress = 0;
+        break;
+    }
+
+    final totlaRotation = (sensorOrientation - rotationDegress + 360) % 360;
+
+    switch (totlaRotation) {
+      case 90:
+        return InputImageRotation.rotation90deg;
+      case 180:
+        return InputImageRotation.rotation180deg;
+      case 270:
+        return InputImageRotation.rotation270deg;
+      case 0:
+      default:
+        return InputImageRotation.rotation0deg;
+    }
   }
 
   Future<bool> requestCameraPermission() async {
@@ -52,186 +205,63 @@ class _BarcodePracticeState extends State<BarcodePractice>
       }
       return false;
     } catch (e) {
-      debugPrint('Error requesting camera permission: $e');
+      debugPrint('Error! Could not get camera permission');
       setState(() {
-        errorMessage = 'Failed to request camera permission: $e';
+        errorMessage = 'Error getting camera permission';
       });
       return false;
     }
   }
 
-  Future<void> initCamera() async {
-    try {
-      final camera = await availableCameras();
-      if (!mounted) {
-        return;
-      }
-      final backCamera = camera.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.back,
-      );
-      cameraController = CameraController(
-        backCamera,
-        ResolutionPreset.high,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.yuv420,
-      );
+  Map<String, String> decodeBarcodeData(String? barcodeValue) {
+    final decodedData = <String, String>{};
 
-      await cameraController!.initialize();
-      if (!mounted) {
-        return;
-      }
-
-      await cameraController!.startImageStream(processCameraImage);
-      setState(() {});
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = 'Failed to initialize camera: $e';
-        });
-      }
-
-      debugPrint('Camera initialization error: $e');
+    if (barcodeValue == null || barcodeValue.isEmpty) {
+      decodedData['Error'] = 'No barcode data found';
+      return decodedData;
     }
-  }
 
-  Future<void> processCameraImage(CameraImage cameraImage) async {
-    if (frameCount++ % frameSkip != 0) {
-      return;
-    }
-    if (isDetecting || mounted) {
-      return;
-    }
-    isDetecting = true;
+    final parts = barcodeValue.split(';');
 
-    try {
-      final WriteBuffer allBytes = WriteBuffer();
-      for (final plane in cameraImage.planes) {
-        allBytes.putUint8List(plane.bytes);
-      }
-      final bytes = allBytes.done().buffer.asUint8List();
-      debugPrint('Image bytes length: ${bytes.length}');
+    for (int i = 0; i < parts.length; i++) {
+      final raw = parts[i];
 
-      if (frameCount == frameSkip) {
-        // await saveFrameForDebugging(
-        //   bytes,
-        //   cameraImage.width,
-        //   cameraImage.height,
-        // );
-
-        final Size imageSize = Size(
-          cameraImage.width.toDouble(),
-          cameraImage.height.toDouble(),
-        );
-
-        final bytesPerRow = cameraImage.planes.first.bytesPerRow;
-
-        final sensorOrientation =
-            cameraController!.description.sensorOrientation;
-        final deviceOrientation = await NativeDeviceOrientationCommunicator()
-            .orientation();
-
-        InputImageRotation rotation = calculateRotation(
-          sensorOrientation,
-          deviceOrientation,
-        );
-
-        debugPrint(
-          'Camera sensor orientation: $sensorOrientation, Device orientation: $deviceOrientation, Rotation: $rotation',
-        );
-
-        final inputImageFormat =
-            cameraImage.format.group == ImageFormatGroup.yuv420
-            ? InputImageFormat.nv21
-            : InputImageFormat.bgra8888;
-
-        final inputImageData = InputImageMetadata(
-          size: imageSize,
-          rotation: rotation,
-          format: inputImageFormat,
-          bytesPerRow: bytesPerRow,
-        );
-
-        final inputImage = InputImage.fromBytes(
-          bytes: bytes,
-          metadata: inputImageData,
-        );
-
-        final List<Barcode> barcodes = await barcodeScanner!.processImage(
-          inputImage,
-        );
-        debugPrint('Detected ${barcodes.length} barcodes');
-        if (barcodes.isNotEmpty && mounted) {
-          final barcodeValue = barcodes.first.displayValue ?? 'No value';
-          debugPrint(
-            'Barcode Detected: $barcodeValue, Type ${barcodes.first.format}',
-          );
-        } else {
-          debugPrint('No barcodes detected in this frame');
-          setState(() {
-            barcodeText =
-                'No barcode detected. Center barcode in the green box';
-          });
+      try {
+        // Try base64 decoding
+        final decoded = utf8.decode(base64Decode(raw));
+        decodedData['Field $i (Decoded)'] = decoded;
+      } catch (_) {
+        // If not base64, handle known structured fields
+        switch (i) {
+          case 2:
+            decodedData['Date of Birth'] = _formatDate(raw);
+            break;
+          case 3:
+            decodedData['Issue Date'] = _formatDate(raw);
+            break;
+          case 4:
+            decodedData['Expiry Date'] = _formatDate(raw);
+            break;
+          case 6:
+            decodedData['ID Number'] = raw;
+            break;
+          default:
+            decodedData['Field $i'] = raw;
         }
       }
-    } catch (e, stackTrace) {
-      debugPrint('Error processing image: $e, StackTrace: $stackTrace');
-      setState(() {
-        barcodeText = 'Error: $e';
-      });
-    } finally {
-      isDetecting = false;
     }
+
+    return decodedData;
   }
 
-  // Future<void> saveFrameForDebugging(
-  //   Uint8List bytes,
-  //   int width,
-  //   int height,
-  // ) async {
-  //   try {
-  //     final directory = await getTemporaryDirectory();
-  //     final filePath =
-  //         '${directory.path}/debug_frame_${DateTime.now().millisecondsSinceEpoch}.yuv';
-  //     await File(filePath).writeAsBytes(bytes);
-  //     debugPrint('Saved debug frame to: $filePath');
-  //   } catch (e) {
-  //     debugPrint('Error saving debug frame: $e');
-  //   }
-  // }
-
-  InputImageRotation calculateRotation(
-    int sensorOrientation,
-    NativeDeviceOrientation deviceOrientation,
-  ) {
-    int rotationDeg;
-
-    switch (deviceOrientation) {
-      case NativeDeviceOrientation.landscapeLeft:
-        rotationDeg = 90;
-        break;
-      case NativeDeviceOrientation.landscapeRight:
-        rotationDeg = 270;
-        break;
-      case NativeDeviceOrientation.portraitDown:
-        rotationDeg = 180;
-        break;
-      case NativeDeviceOrientation.portraitUp:
-      default:
-        rotationDeg = 0;
+  String _formatDate(String dateStr) {
+    if (dateStr.length == 8 && RegExp(r'^\d{8}$').hasMatch(dateStr)) {
+      final day = dateStr.substring(0, 2);
+      final month = dateStr.substring(2, 4);
+      final year = dateStr.substring(4);
+      return '$day/$month/$year';
     }
-
-    final totalRotation = (sensorOrientation - rotationDeg + 360) % 360;
-    switch (totalRotation) {
-      case 90:
-        return InputImageRotation.rotation90deg;
-      case 180:
-        return InputImageRotation.rotation180deg;
-      case 270:
-        return InputImageRotation.rotation270deg;
-      case 0:
-      default:
-        return InputImageRotation.rotation0deg;
-    }
+    return dateStr;
   }
 
   @override
@@ -242,39 +272,39 @@ class _BarcodePracticeState extends State<BarcodePractice>
     }
     if (state == AppLifecycleState.paused) {
       cameraController!.stopImageStream();
-      debugPrint('Live Cam Feed stopped due to app pause');
     } else if (state == AppLifecycleState.resumed) {
-      cameraController!.startImageStream(processCameraImage);
-      debugPrint('Live cam feed resumed');
+      cameraController!.startImageStream(processImageFrame);
     }
   }
 
   @override
   void dispose() {
     super.dispose();
-    WidgetsBinding.instance.removeObserver(this);
-    cameraController!.stopImageStream();
-    cameraController!.dispose();
-    barcodeScanner!.close();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (errorMessage != null) {
-      return Scaffold(
-        appBar: AppBar(title: Text('Barcode Scanner'), centerTitle: true),
-        body: Center(
-          child: Text(errorMessage ?? '', style: TextStyle(color: Colors.red)),
-        ),
-      );
+    if(errorMessage != null){
+          if (errorMessage != null) {
+        return Scaffold(
+          appBar: AppBar(title: Text('Barcode Scanner'), centerTitle: true),
+          body: Center(
+            child: Text(
+              errorMessage ?? '',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        );
+      }
     }
-    if (cameraController == null || !cameraController!.value.isInitialized) {
-      return Scaffold(
-        appBar: AppBar(title: Text('Barcode Scanner'), centerTitle: true),
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    return Scaffold(
+      if (cameraController == null || !cameraController!.value.isInitialized) {
+        return Scaffold(
+          appBar: AppBar(title: Text('Barcode Scanner'), centerTitle: true),
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+       
+     return Scaffold(
       appBar: AppBar(
         title: Text('Barcode Scanner'),
         centerTitle: true,
@@ -283,18 +313,18 @@ class _BarcodePracticeState extends State<BarcodePractice>
             onPressed: () async {
               try {
                 await cameraController!.setFlashMode(
-                  isFlashOn ? FlashMode.off : FlashMode.torch,
+                  isFlashon ? FlashMode.off : FlashMode.torch,
                 );
                 if (mounted) {
                   setState(() {
-                    isFlashOn = !isFlashOn;
+                    isFlashon = !isFlashon;
                   });
                 }
               } catch (e) {
                 debugPrint('Error toggling flash: $e');
               }
             },
-            icon: Icon(isFlashOn ? Icons.flash_off : Icons.flash_on),
+            icon: Icon(isFlashon ? Icons.flash_off : Icons.flash_on),
           ),
         ],
       ),
@@ -351,3 +381,7 @@ class _BarcodePracticeState extends State<BarcodePractice>
     );
   }
 }
+
+
+  
+
