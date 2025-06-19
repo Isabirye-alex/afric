@@ -1,14 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:afri/core/barCode/decode_data.dart';
-import 'package:get/get.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+import '../../core/barCode/decode_data.dart';
 
 class PracticeBarcode extends StatefulWidget {
   const PracticeBarcode({super.key});
@@ -24,7 +25,7 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
   String? errorMessage = '';
   String barcodeText = 'Place Barcode here';
   int frameCount = 0;
-  int frameSkip = 10;
+  int frameSkip = 5;
   bool isDetecting = false;
   bool isFlashon = false;
   Map<String, String>? decodedResult;
@@ -34,7 +35,7 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.all]);
+    barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.pdf417]);
     requestCameraPermission().then((granted) {
       if (granted) {
         initCamera();
@@ -57,13 +58,12 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
       }
       final backCamera = cameras.firstWhere(
         (camera) => camera.lensDirection == CameraLensDirection.back,
-        orElse: () => cameras.first, // Fallback to first available camera
+        orElse: () => cameras.first,
       );
-      print('>>>> initCamera() reached');
 
       cameraController = CameraController(
         backCamera,
-        ResolutionPreset.high,
+        ResolutionPreset.veryHigh,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
@@ -71,18 +71,15 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
       await cameraController!.initialize();
       if (!mounted) return;
 
-      await cameraController!.startImageStream((image)async {
-        print('✅ Image stream callback received');
-        debugPrint('✅ Image stream callback received');
-       await processImageFrame(image); // then delegate
+      await cameraController!.startImageStream((image) async {
+        await processImageFrame(image);
       });
 
-      // await cameraController!.startImageStream(processImageFrame);
       setState(() {});
     } catch (e, stackTrace) {
-      print('Exception in availableCameras: $e');
+      print('Debug print: Exception in availableCameras: $e');
       print(stackTrace);
-      debugPrint('Error initializing camera: $e');
+      debugPrint('Debug print: Error initializing camera: $e');
       setState(() {
         errorMessage = 'Failed to initialize camera: $e';
       });
@@ -90,22 +87,17 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
   }
 
   Future<void> processImageFrame(CameraImage cameraImage) async {
-    debugPrint('🧠 Entered processCameraImage()');
     if (isDetecting || !mounted) return;
-    frameCount++;
-    if (frameCount % frameSkip != 0) return;
 
     isDetecting = true;
     try {
-      debugPrint('📸 Processing frame: $frameCount');
-
+      if (frameCount++ % frameSkip != 0) return;
       final WriteBuffer allBytes = WriteBuffer();
       for (final plane in cameraImage.planes) {
         allBytes.putUint8List(plane.bytes);
       }
 
       final bytes = allBytes.done().buffer.asUint8List();
-      debugPrint('🟢 Image bytes ready: ${bytes.length}');
 
       final Size imageSize = Size(
         cameraImage.width.toDouble(),
@@ -117,13 +109,11 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
       final sensorOrientation = cameraController!.description.sensorOrientation;
       final deviceOrientation = await NativeDeviceOrientationCommunicator()
           .orientation();
-      debugPrint('📐 Sensor: $sensorOrientation, Device: $deviceOrientation');
 
       final InputImageRotation rotation = calculateRotation(
         sensorOrientation,
         deviceOrientation,
       );
-      debugPrint('🔁 Calculated rotation: $rotation');
 
       final InputImageFormat inputImageFormat =
           cameraImage.format.group == ImageFormatGroup.yuv420
@@ -141,150 +131,44 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
         bytes: bytes,
         metadata: inputMetaData,
       );
-
-      debugPrint('🤖 Calling barcodeScanner.processImage...');
       final List<Barcode> barcodes = await barcodeScanner!.processImage(
         inputImage,
       );
 
-      debugPrint('📦 Detected ${barcodes.length} barcode(s)');
+      debugPrint('Debug print:  Detected ${barcodes.length} barcode(s)');
       if (barcodes.isNotEmpty) {
         final barcodeValue = barcodes.first.displayValue ?? 'No value';
         debugPrint(
-          '✅ Barcode: $barcodeValue, Format: ${barcodes.first.format}',
+          'Debug print:  Barcode: $barcodeValue, Format: ${barcodes.first.format}',
         );
-        // final result = decodeBarcodeData(barcodeValue);
-        // setState(() {
-        //   decodedResult = result;
-        // });
+        final result = decodeBarcodeData(barcodeValue);
+        setState(() {
+          decodedResult = result;
+        });
 
-        // await cameraController?.stopImageStream();
-        // isDetecting = false;
+        await cameraController?.stopImageStream();
+        isDetecting = false;
 
-        // if (!mounted) return;
+        if (!mounted) return;
 
-        // debugPrint('🔁 Navigating to decoded screen...');
-        // Future.delayed(Duration.zero, () async {
-        //   await Get.to(() => DecodedDataScreen(decodedData: result));
-        //   if (mounted) {
-        //     debugPrint(
-        //       '↩️ Returned from decoded screen, restarting stream...',
-        //     );
-        //     await cameraController?.startImageStream(processImageFrame);
-        //   }
-        // });
+        debugPrint('Debug Print: Navigating to decoded screen...');
+        Future.delayed(Duration.zero, () async {
+          await Get.to(() => DecodedDataScreen(decodedData: result));
+          if (mounted) {
+            debugPrint(' Returned from decoded screen, restarting stream...');
+            await cameraController?.startImageStream(processImageFrame);
+          }
+        });
       } else {
-        debugPrint('⚠️ No barcode detected in frame');
+        debugPrint('Debug print:  No barcode detected in frame');
       }
     } catch (e, stackTrace) {
-      debugPrint('❌ Exception in processCameraImage: $e');
-      debugPrint('📄 Stack trace:\n$stackTrace');
+      debugPrint('Debug print: Exception in processCameraImage: $e');
+      debugPrint('Debug print: Stack trace:\n$stackTrace');
     } finally {
       isDetecting = false;
     }
   }
-
-  // Future<void> processImageFrame(CameraImage cameraImage) async {
-  //   print('🧠 Entered processCameraImage()');
-  //   if (isDetecting || !mounted) {
-  //     return;
-  //   }
-  //   if (frameCount++ % frameSkip != 0) {
-  //     return;
-  //   }
-  //
-  //   isDetecting = true;
-  //   try {
-  //     final WriteBuffer allBytes = WriteBuffer();
-  //     for (final plane in cameraImage.planes) {
-  //       allBytes.putUint8List(plane.bytes);
-  //     }
-  //     final bytes = allBytes.done().buffer.asUint8List();
-  //
-  //     if (frameCount == frameSkip) {
-  //       await saveFrameForDebugging(
-  //         bytes,
-  //         cameraImage.width,
-  //         cameraImage.height,
-  //       );
-  //     }
-  //
-  //     final bytesPerRow = cameraImage.planes.first.bytesPerRow;
-  //
-  //     final Size imageSize = Size(
-  //       cameraImage.width.toDouble(),
-  //       cameraImage.height.toDouble(),
-  //     );
-  //
-  //     final sensorOrientation = cameraController!.description.sensorOrientation;
-  //     final deviceOrientation = await NativeDeviceOrientationCommunicator()
-  //         .orientation();
-  //
-  //     InputImageRotation rotation = calculateRotation(
-  //       sensorOrientation,
-  //       deviceOrientation,
-  //     );
-  //
-  //     final inputImageFormat =
-  //         cameraImage.format.group == ImageFormatGroup.yuv420
-  //         ? InputImageFormat.nv21
-  //         : InputImageFormat.bgra8888;
-  //
-  //     final inputMetaData = InputImageMetadata(
-  //       size: imageSize,
-  //       rotation: rotation,
-  //       format: inputImageFormat,
-  //       bytesPerRow: bytesPerRow,
-  //     );
-  //
-  //     final inputImage = InputImage.fromBytes(
-  //       bytes: bytes,
-  //       metadata: inputMetaData,
-  //     );
-  //
-  //     final List<Barcode> barcodes = await barcodeScanner!.processImage(
-  //       inputImage,
-  //     );
-  //     print('Detected ${barcodes.length} barcodes');
-  //     debugPrint('Detected ${barcodes.length} barcodes');
-  //     if (barcodes.isNotEmpty && mounted) {
-  //       final barcodeValue = barcodes.first.displayValue;
-  //       print('Barcode Detected: $barcodeValue, Type ${barcodes.first.format}');
-  //       debugPrint(
-  //         'Barcode Detected: $barcodeValue, Type ${barcodes.first.format}',
-  //       );
-  //       if (barcodeValue != null) {
-  //         final result = decodeBarcodeData(barcodeValue);
-  //         setState(() {
-  //           decodedResult = result;
-  //         });
-  //
-  //         await cameraController?.stopImageStream();
-  //         isDetecting = false;
-  //
-  //         if (!mounted) return;
-  //
-  //         debugPrint('🔁 Navigating to decoded screen...');
-  //         Future.delayed(Duration.zero, () async {
-  //           await Get.to(() => DecodedDataScreen(decodedData: result));
-  //           if (mounted) {
-  //             debugPrint(
-  //               '↩️ Returned from decoded screen, restarting stream...',
-  //             );
-  //             await cameraController?.startImageStream(processImageFrame);
-  //           }
-  //         });
-  //       }
-  //     }
-  //   } catch (e, stackTrace) {
-  //     debugPrint('Error processing image: $e, StackTrace: $stackTrace');
-  //     setState(() {
-  //       barcodeText = 'Error: $e';
-  //     });
-  //   } finally {
-  //     isDetecting = false;
-  //   }
-  // }
 
   Future<void> saveFrameForDebugging(
     Uint8List bytes,
@@ -380,30 +264,37 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
 
     final parts = barcodeValue.split(';');
 
+    final fieldLabels = <int, String>{
+      0: 'Surname',
+      1: 'Given Name',
+      2: 'Nationality',
+      3: 'Date of Birth',
+      4: 'Issue Date',
+      5: 'Date of Expiry',
+      6: 'NIN',
+      7: 'Card NO.',
+    };
+
+    final values = parts.length;
+    print(values);
+
     for (int i = 0; i < parts.length; i++) {
+      if (i == 2 || i == 8 || i == 9 || i == 10) {
+        continue;
+      }
       final raw = parts[i];
+      final label = fieldLabels[i] ?? 'Field $i';
 
       try {
-        // Try base64 decoding
+        // Attempt base64 decode
         final decoded = utf8.decode(base64Decode(raw));
-        decodedData['Field $i (Decoded)'] = decoded;
+        decodedData[label] = decoded;
       } catch (_) {
-        // If not base64, handle known structured fields
-        switch (i) {
-          case 2:
-            decodedData['Date of Birth'] = _formatDate(raw);
-            break;
-          case 3:
-            decodedData['Issue Date'] = _formatDate(raw);
-            break;
-          case 4:
-            decodedData['Expiry Date'] = _formatDate(raw);
-            break;
-          case 6:
-            decodedData['ID Number'] = raw;
-            break;
-          default:
-            decodedData['Field $i'] = raw;
+        // Custom parsing for specific fields
+        if (i == 2 || i == 3 || i == 4) {
+          decodedData[label] = _formatDate(raw); // Format as DD/MM/YYYY
+        } else {
+          decodedData[label] = raw;
         }
       }
     }
