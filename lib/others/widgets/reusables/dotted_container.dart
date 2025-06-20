@@ -5,16 +5,12 @@ class DottedContainer extends StatelessWidget {
   const DottedContainer({
     super.key,
     required this.getIcon,
-    required this.getText,
-    // this.screen,
-    this.child,
+    this.getText,
     this.onTap,
   });
 
   final IconData getIcon;
-  final String getText;
-  // final double? screen;
-  final Widget? child;
+  final String? getText;
   final VoidCallback? onTap;
 
   @override
@@ -55,7 +51,7 @@ class DottedContainer extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 10),
-              Text(getText, style: TextStyle(fontSize: 20)),
+              Text(getText ?? '', style: TextStyle(fontSize: 20)),
               // child ?? Container()
             ],
           ),

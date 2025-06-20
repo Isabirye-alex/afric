@@ -35,7 +35,7 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.pdf417]);
+    barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.all]);
     requestCameraPermission().then((granted) {
       if (granted) {
         initCamera();
@@ -138,9 +138,7 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
       debugPrint('Debug print:  Detected ${barcodes.length} barcode(s)');
       if (barcodes.isNotEmpty) {
         final barcodeValue = barcodes.first.displayValue ?? 'No value';
-        debugPrint(
-          'Debug print:  Barcode: $barcodeValue, Format: ${barcodes.first.format}',
-        );
+        debugPrint('Debug print:  Barcode: "$barcodeValue"}');
         final result = decodeBarcodeData(barcodeValue);
         setState(() {
           decodedResult = result;
@@ -148,11 +146,18 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
 
         await cameraController?.stopImageStream();
         isDetecting = false;
+        // isFlashon = false;
 
         if (!mounted) return;
 
         debugPrint('Debug Print: Navigating to decoded screen...');
         Future.delayed(Duration.zero, () async {
+          if (isFlashon = true) {
+            cameraController!.setFlashMode(FlashMode.off);
+             setState(() {
+              isFlashon = !isFlashon;
+            });
+          }
           await Get.to(() => DecodedDataScreen(decodedData: result));
           if (mounted) {
             debugPrint(' Returned from decoded screen, restarting stream...');
@@ -275,23 +280,18 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
       7: 'Card NO.',
     };
 
-    final values = parts.length;
-    print(values);
-
     for (int i = 0; i < parts.length; i++) {
-      if (i == 2 || i == 8 || i == 9 || i == 10) {
+      if (i == 2 || i == 8 || i == 9 || i == 10 || i == 5 || i == 7 || i ==4) {
         continue;
       }
       final raw = parts[i];
       final label = fieldLabels[i] ?? 'Field $i';
 
       try {
-        // Attempt base64 decode
         final decoded = utf8.decode(base64Decode(raw));
         decodedData[label] = decoded;
       } catch (_) {
-        // Custom parsing for specific fields
-        if (i == 2 || i == 3 || i == 4) {
+        if (i == 3 || i == 5 || i == 5) {
           decodedData[label] = _formatDate(raw); // Format as DD/MM/YYYY
         } else {
           decodedData[label] = raw;
@@ -320,6 +320,9 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
     }
     if (state == AppLifecycleState.paused) {
       cameraController!.stopImageStream();
+       if (isFlashon = true) {
+        cameraController!.setFlashMode(FlashMode.off);
+      }
     } else if (shouldRestartCamera) {
       cameraController!.startImageStream(processImageFrame);
       shouldRestartCamera = false;
@@ -335,7 +338,6 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
     barcodeScanner!.close();
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     if (errorMessage != null && errorMessage!.isNotEmpty) {

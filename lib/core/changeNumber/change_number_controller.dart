@@ -1,9 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
-
 import 'package:countries/countries.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import '../../others/models/user_model.dart';
 import '../../ui/registerUser/register_dialog.dart';
 import '../../ui/registerUser/register_screen.dart';

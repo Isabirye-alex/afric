@@ -13,6 +13,7 @@ class DecodedDataScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: decodedData.entries.map((entry) {
           return Card(
+            elevation: 20,
             margin: const EdgeInsets.symmetric(vertical: 6),
             child: ListTile(
               title: Text(
