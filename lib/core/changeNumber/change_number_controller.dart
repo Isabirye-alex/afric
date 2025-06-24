@@ -2,6 +2,7 @@
 import 'package:countries/countries.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import '../../others/models/user_model.dart';
 import '../../ui/registerUser/register_dialog.dart';
 import '../../ui/registerUser/register_screen.dart';
@@ -15,7 +16,6 @@ class UserController extends GetxController {
   static UserController get instance => Get.find();
   late final TextEditingController phoneController = TextEditingController();
   var displayText = 'Loading...'.obs;
-  
 
   @override
   void onInit() {
@@ -82,15 +82,9 @@ class UserController extends GetxController {
 
   void checkUserStatus() async {
     List<UserView> users = await UserDatabase.instance.getUsers();
-
-    // Check if any user has a non-empty phone number
     final hasPhone = users.any((u) => u.phoneNumber.trim().isNotEmpty);
     if (hasPhone) {
-      Get.dialog(
-        PopUpDialog(child: ViewWidget(),
-        ),
-         barrierDismissible: false
-         );
+      Get.dialog(PopUpDialog(child: ViewWidget()), barrierDismissible: false);
     } else {
       Get.dialog(
         PopUpDialog(child: RegisterScreen()),

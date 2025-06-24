@@ -7,12 +7,12 @@ import '../../others/utilis/timer_utili.dart';
 
 class ViewWidget extends StatefulWidget {
   const ViewWidget({super.key});
+
   @override
   State<ViewWidget> createState() => _ViewWidgetState();
 }
 
 class _ViewWidgetState extends State<ViewWidget> {
-
   String userInput = '';
   final TextEditingController inputController = TextEditingController();
   String sessionText = '';
@@ -20,30 +20,24 @@ class _ViewWidgetState extends State<ViewWidget> {
   bool isLoading = true;
 
   @override
-void initState() {
-  super.initState();
-  sessionText = inputController.text.trim();
-
-  // Delay execution to next frame to allow loading UI to show first
-  Future.delayed(Duration.zero, () {
-    _loadInitialData();
-  });
-}
+  void initState() {
+    super.initState();
+    sessionText = inputController.text.trim();
+    Future.delayed(Duration.zero, () {
+      _loadInitialData();
+    });
+  }
 
   void _loadInitialData() {
-  setState(() {
-    isLoading = true;
-
-    
-  _futureResults = sendUssdRequestWithResponse(sessionText);
-  _futureResults.whenComplete(() {
     setState(() {
-      isLoading = false;
+      isLoading = true;
+      _futureResults = sendUssdRequestWithResponse(sessionText);
+      _futureResults.whenComplete(() {
+        setState(() {
+          isLoading = false;
+        });
+      });
     });
-  });
-  }
-  );
-  
   }
 
   Future<UssdViewObject> sendUssdRequestWithResponse(String userInput) async {
@@ -75,7 +69,6 @@ void initState() {
       future: _futureResults,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // isLoading;
           return SizedBox();
         } else if (snapshot.hasError) {
           return Text(
@@ -107,7 +100,6 @@ void initState() {
                       dense: true,
                       visualDensity: VisualDensity(vertical: -4),
                       title: Text(option, style: TextStyle(fontSize: 16)),
-                      onTap: () {},
                     );
                   },
                 ),
@@ -161,7 +153,7 @@ void initState() {
                               sessionText,
                             );
                             inputController.clear();
-                            _loadInitialData(); 
+                            _loadInitialData();
                             // print('Full sessionText: $sessionText');
                           }
                         });
@@ -188,15 +180,12 @@ void initState() {
     return Padding(
       padding: EdgeInsets.zero,
       child: isLoading
-          ?  Container(
-    alignment: Alignment.center,
-    padding: const EdgeInsets.all(16),
-    constraints: const BoxConstraints(
-      maxHeight: 80, 
-      maxWidth: 80, 
-    ),
-    child: CircularProgressIndicator(),
-    )
+          ? Container(
+              alignment: Alignment.center,
+              padding: EdgeInsets.all(16),
+              constraints: BoxConstraints(maxHeight: 80, maxWidth: 80),
+              child: CircularProgressIndicator(),
+            )
           : buildFutureBuilder(),
     );
   }
