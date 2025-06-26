@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+// This widget is used to show a dialog for user registration.
+// It displays a dialog with a specific design and constraints, allowing users to register or perform other
 void showRegisterDialog(BuildContext context) {
   showDialog(
     context: context,
@@ -10,7 +11,7 @@ void showRegisterDialog(BuildContext context) {
     },
   );
 }
-
+// actions related to user registration.
 class PopUpDialog extends StatelessWidget {
   const PopUpDialog({super.key, this.child});
   final Widget? child;

@@ -7,6 +7,7 @@ import '../../core/country/countries_controller.dart';
 import '../../others/utilis/constants/text_constants.dart';
 
 //Declaration of Country Widget as a StatelessWidget to display the country picker,country flag, and the phone number input field
+// This widget is used in the registration screen to allow users to select their country and enter their phone number
 class RegisterScreen extends StatelessWidget {
   const RegisterScreen({super.key});
 
@@ -40,7 +41,9 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 }
-
+// This widget contains the cancel and proceed buttons for the registration process.
+// It uses the UserController to handle the registration logic when the user clicks on the "PROCEED" button.
+// The "CANCEL" button simply closes the dialog without any action.
 class CancelAndProceedWidget extends StatelessWidget {
   const CancelAndProceedWidget({super.key, required this.controller});
 
@@ -52,7 +55,9 @@ class CancelAndProceedWidget extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         TextButton(
-          onPressed: () {},
+          onPressed: () {
+            Get.back();
+          },
           child: Text('CANCEL', style: TextStyle(color: Colors.blue)),
         ),
         TextButton(
@@ -65,7 +70,7 @@ class CancelAndProceedWidget extends StatelessWidget {
     );
   }
 }
-
+// This widget displays the terms and conditions paragraph.
 class TCsParagraph extends StatelessWidget {
   const TCsParagraph({super.key});
 
@@ -74,7 +79,8 @@ class TCsParagraph extends StatelessWidget {
     return Text(Texts.paragraph3, style: TextStyle(color: Colors.grey));
   }
 }
-
+// This widget displays the country code and flag, allowing users to select their country and enter their phone number.
+// It uses the CountriesController to manage the selected country and display the corresponding flag and phone code
 class CountryCodeAndFlag extends StatelessWidget {
   const CountryCodeAndFlag({super.key, required this.countriesController});
 
@@ -160,7 +166,7 @@ class CountryCodeAndFlag extends StatelessWidget {
     });
   }
 }
-
+//
 class IntroductionParagraphs extends StatelessWidget {
   const IntroductionParagraphs({super.key});
 
@@ -184,7 +190,7 @@ class IntroductionParagraphs extends StatelessWidget {
     );
   }
 }
-
+// This widget displays the heading of the registration screen.
 class Heading extends StatelessWidget {
   const Heading({super.key});
 

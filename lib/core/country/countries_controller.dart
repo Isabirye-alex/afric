@@ -2,6 +2,8 @@ import 'package:countries/countries.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+// This controller manages the selection of countries in a Flutter application.
+// It allows users to pick a country from a dialog and stores the selected country in a reactive
 class CountriesController extends GetxController {
   static CountriesController get instance => Get.find();
   var country = Rxn<Country>();
@@ -12,12 +14,15 @@ class CountriesController extends GetxController {
     country.value = CountriesRepo.getCountryByPhoneCode('90');
   }
 
+  // This method shows a dialog for selecting a country.
+  // It allows users to search for a country by name or phone code.
   void showCountryPickerDialog(BuildContext context) async {
     final selected = await showDialog<Country>(
       context: context,
       builder: (context) {
         String query = '';
-        List<Country> filteredList = List.from(CountriesRepo.countryList)..sort((a, b)=>a.name.compareTo(b.name));
+        List<Country> filteredList = List.from(CountriesRepo.countryList)
+          ..sort((a, b) => a.name.compareTo(b.name));
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(

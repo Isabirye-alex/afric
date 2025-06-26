@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import '../../core/changeNumber/change_number_controller.dart';
 import '../../others/widgets/reusables/dotted_container.dart';
 import '../../others/widgets/reusables/ready_widget.dart';
-
+// This screen is part of the home page and contains various options for the user to interact with.
 class BodyScreen extends StatefulWidget {
   const BodyScreen({super.key});
 
@@ -15,7 +15,10 @@ class BodyScreen extends StatefulWidget {
 
 class _BodyScreenState extends State<BodyScreen> {
   @override
+  // This method is called when the widget is first created
   Widget build(BuildContext context) {
+    // Initialize the UserController to manage user-related actions
+    // This controller handles user status checks and other user-related functionalities
     final controller = Get.put(UserController());
     return Column(
       children: [
@@ -39,7 +42,7 @@ class _BodyScreenState extends State<BodyScreen> {
                       child: DottedContainer(
                         getIcon: Icons.dialpad,
                         getText: 'USSD',
-                        onTap: () => controller.checkUserStatus(),
+                        onTap: () => controller.checkUserStatus(),// This method checks the user's status before proceeding with USSD operations
                       ),
                     ),
                   ],
