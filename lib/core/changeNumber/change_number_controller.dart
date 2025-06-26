@@ -8,7 +8,7 @@ import '../../ui/registerUser/register_dialog.dart';
 import '../../ui/registerUser/register_screen.dart';
 import '../country/countries_controller.dart';
 import '../database/register_user_to_db.dart';
-import '../fetchDataFromApi/fetch_data_class.dart';
+import '../fetchDataFromApi/fetch_ussd_data.dart';
 
 class UserController extends GetxController {
   final RxBool isLoading = true.obs;
@@ -84,7 +84,10 @@ class UserController extends GetxController {
     List<UserView> users = await UserDatabase.instance.getUsers();
     final hasPhone = users.any((u) => u.phoneNumber.trim().isNotEmpty);
     if (hasPhone) {
-      Get.dialog(PopUpDialog(child: ViewWidget()), barrierDismissible: false);
+      Get.dialog(
+        PopUpDialog(child: FetchUssdData()),
+        barrierDismissible: false,
+      );
     } else {
       Get.dialog(
         PopUpDialog(child: RegisterScreen()),

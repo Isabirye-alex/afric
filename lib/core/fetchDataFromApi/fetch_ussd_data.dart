@@ -1,29 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-
 import '../../others/models/ussd_object_model.dart';
 import '../../others/utilis/timer_utili.dart';
 
-class ViewWidget extends StatefulWidget {
+class FetchUssdData extends StatefulWidget {
   final http.Client? httpClient; // Optional client for testing
 
-  const ViewWidget({super.key, this.httpClient});
+  const FetchUssdData({super.key, this.httpClient});
 
   @override
-  State<ViewWidget> createState() => _ViewWidgetState();
+  State<FetchUssdData> createState() => _FetchUssdDataState();
 }
 
-class _ViewWidgetState extends State<ViewWidget> {
+class _FetchUssdDataState extends State<FetchUssdData> {
   String userInput = '';
   final TextEditingController inputController = TextEditingController();
   String sessionText = '';
   late Future<UssdViewObject> _futureResults;
   bool isLoading = true;
 
-  http.Client get client =>
-      widget.httpClient ?? http.Client(); 
-      
+  http.Client get client => widget.httpClient ?? http.Client();
+
   @override
   void initState() {
     super.initState();
@@ -37,12 +35,23 @@ class _ViewWidgetState extends State<ViewWidget> {
     setState(() {
       isLoading = true;
       _futureResults = sendUssdRequestWithResponse(sessionText);
-      _futureResults.whenComplete(() {
-        setState(() {
-          isLoading = false;
-        });
-      });
     });
+
+    _futureResults
+        .then((_) {
+          if (mounted) {
+            setState(() {
+              isLoading = false;
+            });
+          }
+        })
+        .catchError((error) {
+          if (mounted) {
+            setState(() {
+              isLoading = false;
+            });
+          }
+        });
   }
 
   Future<UssdViewObject> sendUssdRequestWithResponse(String userInput) async {
@@ -63,7 +72,7 @@ class _ViewWidgetState extends State<ViewWidget> {
         throw Exception('Failed to connect. Status: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error:$e');
+      throw Exception('Failed to connect. Error: $e');
     }
   }
 
