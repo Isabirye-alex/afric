@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,7 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
   CameraController? cameraController;
   BarcodeScanner? barcodeScanner;
   String? errorMessage = '';
-  String barcodeText = 'Place Barcode here';
+  String barcodeText = 'Align barcode in the green area';
   int frameCount = 0;
   int frameSkip = 5;
   bool isDetecting = false;
@@ -35,7 +36,9 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.all]);
+    if (mounted) {
+      barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.all]);
+    }
     requestCameraPermission().then((granted) {
       if (granted) {
         initCamera();
@@ -63,7 +66,7 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
 
       cameraController = CameraController(
         backCamera,
-        ResolutionPreset.veryHigh,
+        ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
@@ -146,15 +149,15 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
 
         await cameraController?.stopImageStream();
         isDetecting = false;
-        // isFlashon = false;
 
         if (!mounted) return;
 
         debugPrint('Debug Print: Navigating to decoded screen...');
         Future.delayed(Duration.zero, () async {
           if (isFlashon = true) {
+            cameraController!.stopImageStream();
             cameraController!.setFlashMode(FlashMode.off);
-             setState(() {
+            setState(() {
               isFlashon = !isFlashon;
             });
           }
@@ -281,7 +284,7 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
     };
 
     for (int i = 0; i < parts.length; i++) {
-      if (i == 2 || i == 8 || i == 9 || i == 10 || i == 5 || i == 7 || i ==4) {
+      if (i == 2 || i == 8 || i == 9 || i == 10) {
         continue;
       }
       final raw = parts[i];
@@ -320,8 +323,9 @@ class _PracticeBarcodeState extends State<PracticeBarcode>
     }
     if (state == AppLifecycleState.paused) {
       cameraController!.stopImageStream();
-       if (isFlashon = true) {
+      if (isFlashon == true) {
         cameraController!.setFlashMode(FlashMode.off);
+        isFlashon = false;
       }
     } else if (shouldRestartCamera) {
       cameraController!.startImageStream(processImageFrame);

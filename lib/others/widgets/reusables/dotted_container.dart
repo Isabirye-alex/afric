@@ -15,13 +15,10 @@ class DottedContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final size = MediaQuery.of(context).size;
-
     return Card(
       elevation: 10,
       child: Container(
         height: 150,
-        // width: size.width * screen!,
         padding: EdgeInsets.all(12),
         margin: EdgeInsets.only(top: 12, left: 12, right: 12),
         decoration: BoxDecoration(
@@ -43,11 +40,11 @@ class DottedContainer extends StatelessWidget {
                 options: CircularDottedBorderOptions(
                   dashPattern: [6, 3],
                   strokeWidth: 2,
-                  color: Colors.deepOrangeAccent,
+                  color: Colors.green,
                   padding: EdgeInsets.all(8),
                 ),
                 child: Center(
-                  child: Icon(getIcon, size: 70, color: Colors.orange[600]),
+                  child: Icon(getIcon, size: 70, color: Colors.green),
                 ),
               ),
               SizedBox(height: 10),

@@ -6,7 +6,9 @@ import '../../others/models/ussd_object_model.dart';
 import '../../others/utilis/timer_utili.dart';
 
 class ViewWidget extends StatefulWidget {
-  const ViewWidget({super.key});
+  final http.Client? httpClient; // Optional client for testing
+
+  const ViewWidget({super.key, this.httpClient});
 
   @override
   State<ViewWidget> createState() => _ViewWidgetState();
@@ -19,6 +21,9 @@ class _ViewWidgetState extends State<ViewWidget> {
   late Future<UssdViewObject> _futureResults;
   bool isLoading = true;
 
+  http.Client get client =>
+      widget.httpClient ?? http.Client(); 
+      
   @override
   void initState() {
     super.initState();
@@ -42,7 +47,7 @@ class _ViewWidgetState extends State<ViewWidget> {
 
   Future<UssdViewObject> sendUssdRequestWithResponse(String userInput) async {
     try {
-      final response = await http.post(
+      final response = await client.post(
         Uri.parse('https://newtest.mcash.ug/wallet/api/client/ussd'),
         body: <String, String>{
           'phoneNumber': '+256706432259',
@@ -69,11 +74,11 @@ class _ViewWidgetState extends State<ViewWidget> {
       future: _futureResults,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox();
+          return const SizedBox();
         } else if (snapshot.hasError) {
           return Text(
             'Error: ${snapshot.error}',
-            style: TextStyle(fontSize: 16, color: Colors.red),
+            style: const TextStyle(fontSize: 16, color: Colors.red),
           );
         } else if (snapshot.hasData) {
           final ussdObject = snapshot.data!;
@@ -98,24 +103,24 @@ class _ViewWidgetState extends State<ViewWidget> {
                     final option = ussdObject.options![index];
                     return ListTile(
                       dense: true,
-                      visualDensity: VisualDensity(vertical: -4),
-                      title: Text(option, style: TextStyle(fontSize: 16)),
+                      visualDensity: const VisualDensity(vertical: -4),
+                      title: Text(option, style: const TextStyle(fontSize: 16)),
                     );
                   },
                 ),
               ),
               Container(
-                margin: EdgeInsets.only(left: 16, right: 16),
-                padding: EdgeInsets.only(left: 16, right: 16),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: TextField(
                   controller: inputController,
-                  decoration: InputDecoration(),
+                  decoration: const InputDecoration(),
                   maxLines: 1,
                 ),
               ),
               Container(
-                padding: EdgeInsets.only(left: 16, right: 16),
-                margin: EdgeInsets.only(left: 16, right: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                margin: const EdgeInsets.only(left: 16, right: 24),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -132,10 +137,10 @@ class _ViewWidgetState extends State<ViewWidget> {
                             Get.find<TimerDialogController>();
 
                         if (!timerController.isWithinAllowedTime()) {
-                          Get.back(); // Close dialog (optional)
+                          Get.back();
                           Get.snackbar(
                             snackPosition: SnackPosition.BOTTOM,
-                            duration: Duration(seconds: 2),
+                            duration: const Duration(seconds: 2),
                             "Session expired",
                             "Please repeat the operation.",
                             backgroundColor: Colors.red,
@@ -154,7 +159,6 @@ class _ViewWidgetState extends State<ViewWidget> {
                             );
                             inputController.clear();
                             _loadInitialData();
-                            // print('Full sessionText: $sessionText');
                           }
                         });
                       },
@@ -182,9 +186,9 @@ class _ViewWidgetState extends State<ViewWidget> {
       child: isLoading
           ? Container(
               alignment: Alignment.center,
-              padding: EdgeInsets.all(16),
-              constraints: BoxConstraints(maxHeight: 80, maxWidth: 80),
-              child: CircularProgressIndicator(),
+              padding: const EdgeInsets.all(16),
+              constraints: const BoxConstraints(maxHeight: 80, maxWidth: 80),
+              child: const CircularProgressIndicator(),
             )
           : buildFutureBuilder(),
     );

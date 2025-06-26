@@ -1,8 +1,7 @@
-import 'package:afri/core/barCode/bar_code_screen.dart';
-import 'package:afri/others/practice/barcode.dart';
 import 'package:afri/others/practice/practice_barcode.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import '../../core/changeNumber/change_number_controller.dart';
 import '../../others/widgets/reusables/dotted_container.dart';
 import '../../others/widgets/reusables/ready_widget.dart';
@@ -31,15 +30,15 @@ class _BodyScreenState extends State<BodyScreen> {
                       flex: 5,
                       child: DottedContainer(
                         getIcon: Icons.perm_phone_msg_rounded,
-                        getText: 'SMS',                        
-                        onTap: () => Get.to(()=>PracticeBarcode()),
+                        getText: 'SMS',
+                        onTap: () {},
                       ),
                     ),
                     Expanded(
                       flex: 5,
                       child: DottedContainer(
                         getIcon: Icons.dialpad,
-                        getText: 'USSD',                      
+                        getText: 'USSD',
                         onTap: () => controller.checkUserStatus(),
                       ),
                     ),
@@ -51,8 +50,8 @@ class _BodyScreenState extends State<BodyScreen> {
                       flex: 5,
                       child: DottedContainer(
                         getIcon: Icons.payments,
-                        getText: 'PAYMENTS',                        
-                        onTap: () => controller.checkUserStatus(),
+                        getText: 'PAYMENTS',
+                        onTap: () {},
                       ),
                     ),
                     Expanded(
@@ -60,7 +59,7 @@ class _BodyScreenState extends State<BodyScreen> {
                       child: DottedContainer(
                         getIcon: Icons.dialpad,
                         getText: 'AIRTIME',
-                        onTap: () =>Get.to(()=>BarcodePractice()),
+                        onTap: () {},
                       ),
                     ),
                   ],
@@ -72,16 +71,16 @@ class _BodyScreenState extends State<BodyScreen> {
                       child: DottedContainer(
                         getIcon: Icons.wifi_calling_3,
                         getText: 'VOICE',
-                        onTap: () => Get.to(()=>BarCodeScreen())),
+                        onTap: () {},
                       ),
-                  
-                  
+                    ),
+
                     Expanded(
                       flex: 5,
                       child: DottedContainer(
                         getIcon: Icons.qr_code_scanner_sharp,
-                        getText: 'VERIFY ID',                     
-                        onTap: () => Get.to(()=>BarCodeScreen()),
+                        getText: 'VERIFY ID',
+                        onTap: () => Get.to(() => PracticeBarcode()),
                       ),
                     ),
                   ],

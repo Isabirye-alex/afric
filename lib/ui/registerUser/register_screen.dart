@@ -9,6 +9,7 @@ import '../../others/utilis/constants/text_constants.dart';
 //Declaration of Country Widget as a StatelessWidget to display the country picker,country flag, and the phone number input field
 class RegisterScreen extends StatelessWidget {
   const RegisterScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     final countriesController = Get.put(CountriesController());
@@ -87,7 +88,6 @@ class CountryCodeAndFlag extends StatelessWidget {
       if (selectedCountry == null) {
         return Text("Select a country");
       }
-
       return Container(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(

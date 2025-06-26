@@ -1,19 +1,15 @@
 import 'package:countries/countries.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-//Controller to handle injection of the country picker into calling widgets
 
 class CountriesController extends GetxController {
   static CountriesController get instance => Get.find();
-
   var country = Rxn<Country>();
 
   @override
   void onInit() {
     super.onInit();
-    country.value = CountriesRepo.getCountryByPhoneCode(
-      '90',
-    ); // Default to Turkey
+    country.value = CountriesRepo.getCountryByPhoneCode('90');
   }
 
   void showCountryPickerDialog(BuildContext context) async {
@@ -21,7 +17,7 @@ class CountriesController extends GetxController {
       context: context,
       builder: (context) {
         String query = '';
-        List<Country> filteredList = CountriesRepo.countryList;
+        List<Country> filteredList = List.from(CountriesRepo.countryList)..sort((a, b)=>a.name.compareTo(b.name));
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(

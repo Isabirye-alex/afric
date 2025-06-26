@@ -9,6 +9,7 @@ import 'change_number_controller.dart';
 //Declaration of Country Widget as a StatelessWidget to display the country picker,country flag, and the phone number input field
 class ChangeNumber extends StatelessWidget {
   const ChangeNumber({super.key});
+
   @override
   Widget build(BuildContext context) {
     final countriesController = Get.put(CountriesController());
@@ -20,18 +21,20 @@ class ChangeNumber extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ListView(
-              shrinkWrap: true,
-              padding: EdgeInsets.all(8.0),
-              children: <Widget>[
-                Heading(),
-                IntroductionParagraphs(),
-                SizedBox(height: 10),
-                CountryCodeAndFlag(countriesController: countriesController),
-                SizedBox(height: 10),
-                TCsParagraph(),
-                CancelAndProceedWidget(controller: controller),
-              ],
+            Expanded(
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.all(8.0),
+                children: <Widget>[
+                  Heading(),
+                  IntroductionParagraphs(),
+                  SizedBox(height: 10),
+                  CountryCodeAndFlag(countriesController: countriesController),
+                  SizedBox(height: 10),
+                  TCsParagraph(),
+                  CancelAndProceedWidget(controller: controller),
+                ],
+              ),
             ),
           ],
         ),
@@ -51,7 +54,9 @@ class CancelAndProceedWidget extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         TextButton(
-          onPressed: () {},
+          onPressed: () {
+            Get.back();
+          },
           child: Text('CANCEL', style: TextStyle(color: Colors.blue)),
         ),
         TextButton(
